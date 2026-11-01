@@ -13,11 +13,19 @@ export interface Person {
   name: string;
 }
 
+export type WorkItemType = 'epic' | 'story' | 'task' | 'bug' | 'other';
+
 export interface WorkItem {
   ref: RecordRef;
+  type?: WorkItemType;
   assigneeId?: string;
   status: 'open' | 'done';
+  /** Id (issue key) of the parent epic, when this item belongs to one. */
   epicId?: string;
+  /** Ids of Confluence pages or decisions linked from this item. */
+  linkedPageIds?: string[];
+  /** Ids of pull requests linked to this item. */
+  linkedPullRequestIds?: string[];
 }
 
 export interface Page {
@@ -39,6 +47,8 @@ export interface Decision {
   status: 'proposed' | 'approved' | 'superseded';
   /** People whose input or approval is still outstanding. */
   pendingApproverIds: string[];
+  /** Ids of work items that implement or depend on this decision. */
+  linkedWorkItemIds?: string[];
 }
 
 /** The only shape the UI and risk engine see; adapters (forge, mock) produce it. */
@@ -56,7 +66,11 @@ export type FindingKind =
   | 'sole-contributor-page'
   | 'open-work'
   | 'open-pull-request'
-  | 'pending-decision';
+  | 'pending-decision'
+  | 'no-recorded-spec'
+  | 'done-without-implementation'
+  | 'unapproved-decision'
+  | 'superseded-decision-in-use';
 
 export interface Finding {
   kind: FindingKind;

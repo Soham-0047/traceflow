@@ -113,3 +113,13 @@ export function assessPersonRisk(
     caveats: CAVEATS,
   };
 }
+
+/** Everyone in the graph, highest risk first (ties broken by name for stable output). */
+export function rankPeopleByRisk(
+  graph: OrgGraph,
+  weights: RiskWeights = DEFAULT_WEIGHTS,
+): PersonRiskReport[] {
+  return graph.people
+    .map((p) => assessPersonRisk(graph, p.id, weights))
+    .sort((a, b) => b.score - a.score || a.personName.localeCompare(b.personName));
+}
