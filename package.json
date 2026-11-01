@@ -1,0 +1,13 @@
+{
+  "name": "traceflow",
+  "private": true,
+  "version": "0.1.0",
+  "description": "TraceFlow: knowledge risk and decision lineage for Atlassian teams (Codegeist 2026).",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "engines": { "node": ">=20" }
+}

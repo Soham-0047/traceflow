@@ -1,0 +1,59 @@
+name: Forge deploy (manual)
+
+# Manual only. Skips itself until app/manifest.yml exists.
+# Requires repository secrets: FORGE_EMAIL and FORGE_API_TOKEN (Atlassian API token).
+# Untested until the Forge app is registered.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Forge environment to deploy to
+        type: choice
+        default: development
+        options:
+          - development
+          - staging
+          - production
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the Forge app exists
+        id: check
+        run: |
+          if [ -f app/manifest.yml ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "No app/manifest.yml yet - nothing to deploy."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.exists == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies and Forge CLI
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          npm ci
+          npm install -g @forge/cli
+
+      - name: Deploy
+        if: steps.check.outputs.exists == 'true'
+        working-directory: app
+        env:
+          FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+          FORGE_ENV: ${{ inputs.environment }}
+        run: |
+          forge settings set usage-analytics false
+          forge deploy --non-interactive -e "$FORGE_ENV"
