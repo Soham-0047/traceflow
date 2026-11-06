@@ -1,6 +1,6 @@
 # TraceFlow progress index
 
-Last updated: 2026-11-01 (session 1). Read `AGENTS.md` first. This file is the resume point for any new session or agent: update it before you stop.
+Last updated: 2026-11-06 (session 2). Read `AGENTS.md` first. This file is the resume point for any new session or agent: update it before you stop.
 
 <!-- progress:start -->
 | Workstream | Done | Total | Complete |
@@ -18,6 +18,8 @@ Last updated: 2026-11-01 (session 1). Read `AGENTS.md` first. This file is the r
 The table counts the checkboxes under **Workstreams** and is rebuilt with `npm run progress:write` (CI fails if it is stale). Counts measure planned tasks, not effort.
 
 ## Resume here
+Schedule check on 2026-11-06: 47 days to the Dec 23 deadline. The plan's Nov 1 to 8 window for setup and spikes is nearly used up and is still waiting on the Atlassian dev site, so that is the critical path.
+
 Next actions, highest first:
 1. **Soham:** create the Atlassian dev site, run `forge create`, share the `app.id` line, add the two GitHub secrets (see Blockers). Nothing Forge-side can start before this.
 2. **Run spike S1** (`docs/SPIKES.md`), then fix `packages/core/src/normalize.ts` against real payloads.
@@ -91,7 +93,7 @@ Next actions, highest first:
 - [ ] Final README with install steps
 
 ## Verified vs unverified
-Verified (run in the build sandbox, session 1): core tests (29) and demo tests (12) pass; typecheck passes; `vite build` succeeds; Hallmark static lint 0 FAIL, 0 WARN; CI passed on the first push.
+Verified (run in the build sandbox, session 2): core tests (29) and demo tests (12) pass; typecheck passes; `vite build` succeeds; Hallmark static lint 0 FAIL, 0 WARN; CI passed on the first push.
 
 Unverified: everything that touches Atlassian (Forge deploy, REST payload shapes, Teamwork Graph, Rovo); `forge-deploy.yml`; how the demo actually renders (no browser in the sandbox, so no screenshots and no Hallmark render tier); web fonts loading; Netlify deploy.
 
@@ -120,4 +122,5 @@ Unverified: everything that touches Atlassian (Forge deploy, REST payload shapes
 - If Teamwork Graph returns an authorization error, ask Atlassian support to allowlist the app ID (see S2).
 
 ## Session log (newest first)
-- **2026-11-01, session 1.** Researched the direction and platforms; wrote the plan. Built `packages/core` (risk, lineage, decisions, normalizers, rules, fixtures, 29 tests). Vendored Hallmark (MIT) and built `demo/` (three views, evidence card, four states, 12 tests, lint clean) under a Coral app-screen design. Added CI, Netlify config, progress tooling, `AGENTS.md`, `DESIGN.md`, `docs/SPIKES.md`. Not done: anything needing Atlassian access, a real browser, or Netlify.
+- **2026-11-06, session 2.** Vendored Hallmark (MIT) and dealt the Coral theme at app scope. Built `demo/` (People ledger, Epics lane diagram, Decisions, evidence card, four states with `?demo=` switches, 12 UI tests, Hallmark lint at 0 FAIL and 0 WARN). Added `DESIGN.md`, `AGENTS.md`, `CLAUDE.md`, `docs/SPIKES.md`, this index with a generated progress table, the Netlify config, and CI steps for design lint and the progress check. Not done: anything needing Atlassian access, a real browser (no screenshots or render-tier lint), or Netlify.
+- **2026-11-01, session 1.** Researched the direction and platforms (Forge hosting, free allowances, CI, Teamwork Graph Preview status); wrote `docs/PLAN.md`; pushed the first commit. Built `packages/core`: risk scoring and ranking, epic lineage, decision tracing, Jira and Confluence normalizers, rule text, richer fixtures, 29 tests.
