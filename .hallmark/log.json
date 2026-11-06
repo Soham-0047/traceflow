@@ -1,0 +1,25 @@
+[
+ {
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "coral",
+  "axes": "light/grotesk-sans/warm",
+  "hero": "none (app screen)",
+  "nav": "top bar, three destinations",
+  "footer": "one quiet line",
+  "imagery": "none",
+  "photos": [],
+  "entry": "three-column workspace: rail, ledger, evidence card",
+  "fingerprint": "app|coral|topbar|ledger+lanes|evidence-card",
+  "sections": [
+   "people",
+   "epics",
+   "decisions"
+  ],
+  "signature": "the handover ledger: records x weight = points, summed in view",
+  "waived": [],
+  "prompt": "Evidence-first knowledge-risk investigation dashboard for Jira and Confluence teams",
+  "date": "2026-11-06",
+  "mode": "build"
+ }
+]

@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  core:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,3 +21,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Design lint (Hallmark, app scope)
+        run: npm run lint:design
+      - name: Progress index is current
+        run: npm run progress:check

@@ -4,7 +4,7 @@
 
 Built for Atlassian **Codegeist 2026** on Forge. First product: **Knowledge Risk & Decision Lineage**.
 
-> Status: planning and core engine. Nothing here is deployed yet.
+> Status: core engine and a sample-data demo are built and tested. The Forge app is the next step. See [`docs/PROGRESS.md`](docs/PROGRESS.md) for exactly where things stand.
 
 ## What it will do
 
@@ -21,18 +21,22 @@ TraceFlow provides *audit-ready evidence* and *decision traceability*. It does n
 
 | Path | Purpose |
 |---|---|
+| `AGENTS.md` | Start here if you are an AI agent or a new contributor |
+| `docs/PROGRESS.md` | What is done, what is next, what is verified, what is blocked |
 | `docs/PLAN.md` | Direction, decisions, architecture, timeline, submission checklist |
-| `packages/core` | Pure TypeScript relationship and risk engine (tested, no Atlassian dependency) |
-| `app/` | Forge app (created after `forge register`) |
+| `docs/SPIKES.md` | The four Forge validation spikes |
+| `DESIGN.md` | Locked design system and product rules ([Hallmark](https://github.com/Nutlope/hallmark) is vendored in `.claude/skills/hallmark`) |
+| `packages/core` | Pure TypeScript engine: risk, lineage, decisions, normalizers (tested, no Atlassian dependency) |
+| `demo` | The UI on sample data: people ledger, epic lineage, decisions, evidence card |
+| `app/` | Forge app (created after `forge create`) |
 | `.github/workflows` | CI, plus a manual Forge deploy workflow |
 
 ## Develop
 
 ```bash
 npm install
-npm run typecheck
-npm test
-npm run build
+npm run verify                 # typecheck, tests, build, design lint
+npm run dev -w @traceflow/demo # the demo on http://localhost:5173
 ```
 
-Requires Node 20+.
+Requires Node 20+. The demo shows sample data from a fictional team; add `?demo=loading`, `?demo=empty` or `?demo=error` to see the other states.

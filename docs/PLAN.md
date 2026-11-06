@@ -1,6 +1,7 @@
 # TraceFlow — Project Plan
 
 > Status: v1 · written 2026-11-01 · owner: Soham-0047
+> Living status, decisions made since, and next actions are in [`docs/PROGRESS.md`](PROGRESS.md). Design rules are in [`/DESIGN.md`](../DESIGN.md). Agents start at [`/AGENTS.md`](../AGENTS.md).
 > Target: Atlassian **Codegeist 2026** (deadline **Dec 23, 2026** per the project docs; the 2025 cutoff was 10:00 AM PT, so confirm the exact 2026 time on Devpost and aim to submit by **Dec 21**).
 
 ## 1. Positioning
@@ -40,7 +41,7 @@ Principles: records are the source of truth; AI only explains and suggests; star
 | D4 | **Everything runs on Forge** (functions, KVS, Custom UI) | Keeps data on Atlassian (the "Runs on Atlassian" bonus existed in 2025), no external backend to host or pay for |
 | D5 | **Pure-TypeScript core** (`packages/core`) with a data-adapter interface | Testable without Atlassian access; the same UI can run on mock data (Netlify demo) or Forge data |
 | D6 | **No external LLM key.** Risk scoring is deterministic; Rovo provides the AI | $0, no secrets, and findings are explainable |
-| D7 | `@xyflow/react` for graphs (not the older `react-flow-renderer`) | Current package name |
+| D7 | ~~`@xyflow/react` for graphs~~ **Superseded (PROGRESS D9):** lineage is an HTML lane diagram with an SVG connector layer | Fewer dependencies, accessible, testable. If a real graph is needed later, use `@xyflow/react`, not `react-flow-renderer` |
 | D8 | Optional graph view only inside an investigation, never the homepage | Business users need answers, not hundreds of nodes |
 
 ## 4. Architecture
@@ -77,11 +78,17 @@ Principles: records are the source of truth; AI only explains and suggests; star
 
 ```
 traceflow/
+├─ AGENTS.md, CLAUDE.md         entry point for agents
+├─ DESIGN.md                    locked design system and product rules (Hallmark reads it first)
 ├─ docs/PLAN.md                 this file
-├─ packages/core/               pure TS: types, risk engine, evidence model, fixtures, tests
-├─ app/                         Forge app (manifest, resolvers, Custom UI, Rovo agent)   ← created after `forge register`
-├─ demo/                        Netlify mock-data build of the UI                       ← Phase 3
-└─ .github/workflows/           ci.yml (core), forge-deploy.yml (manual, guarded)
+├─ docs/PROGRESS.md             living index: what is done, next, verified, blocked
+├─ docs/SPIKES.md               the four Forge validation spikes
+├─ packages/core/               pure TS: types, risk, lineage, decisions, normalizers, fixtures, tests
+├─ demo/                        Vite + React UI on sample data (Netlify)                 ← built (session 1)
+├─ app/                         Forge app (manifest, resolvers, Custom UI, Rovo agent)   ← created after `forge create`
+├─ .claude/skills/hallmark/     vendored Hallmark design skill (MIT)
+├─ .hallmark/log.json           Hallmark's record of design builds (keeps variety honest)
+└─ .github/workflows/           ci.yml (verify), forge-deploy.yml (manual, untested)
 ```
 
 ## 7. Data model and risk principles
@@ -132,6 +139,7 @@ First engine (already in `packages/core`): `assessPersonRisk(graph, personId)` w
 | Teamwork Graph Preview changes or needs admin scopes | D1: core never depends on it; feature flag |
 | Cross-product access harder than expected | S1 in Week 1 before any UI polish |
 | Cannot verify against Atlassian from my sandbox | CI logs + screenshots from Soham; fixtures cover the logic |
+| Teamwork Graph may require the app to be allowlisted by Atlassian support | Ask early if the `echo` query fails (S2); core never depends on it |
 | Demo data looks thin | Seed script (run locally) to populate a realistic dev site |
 | Overclaiming (SOC 2, "only expert") | Wording rules in §1 |
 | Scope creep back to four products | §2 table is the contract; changes need an explicit decision |
