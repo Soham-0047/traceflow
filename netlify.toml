@@ -1,0 +1,13 @@
+# Public demo site: the TraceFlow UI on sample data. Connect the repo from Netlify's UI; no token needed.
+[build]
+  command = "npm ci && npm run build -w @traceflow/demo"
+  publish = "demo/dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
