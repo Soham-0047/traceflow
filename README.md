@@ -6,7 +6,7 @@ Built for Atlassian **Codegeist 2026** on Forge. First product: **Knowledge Risk
 
 > Status: engine, shared Workbench UI, Forge app scaffold, seeder and landing page are built and tested (69 tests, Hallmark lint clean on both tiers). The Forge app waits on a dev site; see [`docs/PROGRESS.md`](docs/PROGRESS.md) for exactly where things stand.
 
-**Try it:** the landing page is live at `https://soham-0047.github.io/traceflow/`, and the public demo runs on the same interface with sample data at `https://soham-0047.github.io/traceflow/demo/`.
+**Try it:** the landing page and the sample-data demo publish to `https://soham-0047.github.io/traceflow/` and `…/traceflow/demo/` — they go live after the one-time Pages source flip (repo Settings → Pages → Source: **GitHub Actions**; see [`docs/PROGRESS.md`](docs/PROGRESS.md), "Blockers needing Soham").
 
 ## What it will do
 

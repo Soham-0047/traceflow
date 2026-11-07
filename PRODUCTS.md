@@ -33,10 +33,10 @@ The platform is one shared engine, a few surfaces that show it, and some satelli
 | --- | --- | --- | --- | --- | --- |
 | TF-01 | TraceFlow for Atlassian (Forge app) | T1 | Scaffolded and unit-tested; UNVERIFIED until deployed (needs `forge register`) | Forge, Custom UI (React, TS) | `app/` |
 | TF-02 | TraceFlow Engine | T1 | v1.1: overview aggregates added; 38 tests | TypeScript, no runtime deps | `packages/core` |
-| TF-03 | TraceFlow Workbench (shared UI and public demo) | T1 | Reviewed in a real browser at two widths; render-tier lint clean; keyboard pass done | React 18, TS, Vite | `packages/ui`, `demo/` |
+| TF-03 | TraceFlow Workbench (shared UI and public demo) | T1 | Reviewed in a real browser at two widths; render-tier lint clean; keyboard pass and axe-core a11y gate in CI done; manual screen-reader pass owed | React 18, TS, Vite | `packages/ui`, `demo/` |
 | TF-04 | TraceFlow Agent (Rovo agent, actions, optional MCP tools) | T1 | Not started | Forge `rovo:*` modules | `app/` |
 | TF-05 | TraceFlow Seeder (demo data and video kit) | T1 | Planner written and unit-tested; REST apply UNVERIFIED until a real run | Node, TS, Atlassian REST | `tools/seeder` |
-| TF-08 | TraceFlow Site and docs | T1 | Live on GitHub Pages (landing at `/`, demo at `/demo/`); lint clean on both tiers; a11y audit in CI | Static site | `site/` |
+| TF-08 | TraceFlow Site and docs | T1 | Built, lint clean on both tiers, a11y gate in CI; public URL waits on the one-time Pages source flip | Static site | `site/` |
 | TF-06 | TraceFlow MCP (standalone server for any AI agent) | T2 | Not started | TS, MCP SDK | `packages/mcp` |
 | TF-07 | TraceFlow Check (provenance gate for pull requests) | T2 | Not started | Node CLI, GitHub Action, Bitbucket Pipe | `packages/check` |
 | TF-09 | TraceFlow Cloud (standalone web app) | T3 | Not started | TS full stack | `apps/cloud` |

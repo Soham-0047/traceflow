@@ -10,7 +10,7 @@ Last updated: 2026-11-07 (session 4). Read `AGENTS.md` first, and see `PRODUCTS.
 | TF-03 Workbench and public demo (packages/ui, demo) | T1 | 10 | 12 | 83% |
 | TF-01 Forge app (app) | T1 | 3 | 7 | 43% |
 | TF-04 Agent (Rovo) and Teamwork Graph | T1 | 0 | 5 | 0% |
-| CI/CD and hosting | T1 | 6 | 8 | 75% |
+| CI/CD and hosting | T1 | 5 | 8 | 63% |
 | Submission | T1 | 0 | 4 | 0% |
 | TF-05 Seeder and demo kit (tools/seeder) | T1 | 3 | 3 | 100% |
 | TF-08 Site and docs (site) | T1 | 1 | 3 | 33% |
@@ -20,21 +20,22 @@ Last updated: 2026-11-07 (session 4). Read `AGENTS.md` first, and see `PRODUCTS.
 | TF-10 Connectors (packages/connectors) | T3 | 0 | 3 | 0% |
 | TF-11 Impact, change impact analysis | T3 | 0 | 2 | 0% |
 | TF-12 Promises | T3 | 0 | 2 | 0% |
-| **Tier 1 (ships for the hackathon)** | T1 | **36** | **61** | **59%** |
-| **All tiers** | all | **36** | **77** | **47%** |
+| **Tier 1 (ships for the hackathon)** | T1 | **35** | **61** | **57%** |
+| **All tiers** | all | **35** | **77** | **45%** |
 <!-- progress:end -->
 
 The table counts the checkboxes under **Workstreams** and is rebuilt with `npm run progress:write` (CI fails if it is stale). Counts measure planned tasks, not effort.
 
 ## Resume here
-Schedule check on 2026-11-07: 46 days to the Dec 23 deadline. The engine, Workbench, Forge scaffold, seeder and landing page are all built and tested in the sandbox, and the public site and demo are live on GitHub Pages; the critical path is now Atlassian access.
+Schedule check on 2026-11-07: 46 days to the Dec 23 deadline. The engine, Workbench, Forge scaffold, seeder and landing page are all built and tested in the sandbox; the Pages build job is verified end to end. The critical path is now two one-time setups: the Pages source flip and Atlassian access.
 
 Next actions, highest first:
-1. **Soham:** create the Atlassian dev site, run `forge register` in `app/`, put the app id in `app/manifest.yml` (replacing `REPLACE_AFTER_FORGE_REGISTER`), and add the `FORGE_EMAIL` / `FORGE_API_TOKEN` secrets. Everything Forge-side is scaffolded and unit-tested; `app/README.md` has the steps.
-2. **Run spike S1** (`docs/SPIKES.md`), then fix `app/src/backend/graph.ts` and `packages/core/src/normalize.ts` against real payloads.
-3. **Soham:** run the seeder against the dev site (`npm run seed -w @traceflow/seeder`, dry-run by default, `--apply` for real; needs the env vars in `tools/seeder/src/cli.ts`).
-4. Manual screen-reader pass over the Workbench (NVDA or VoiceOver); the keyboard pass and the automated axe-core audit (in CI since session 4) are done.
-5. Rovo agent (TF-04) once S1 passes: `rovo:agent` / `rovo:action` modules calling the same resolver.
+1. **Soham, one flip:** repo Settings → Pages → Build and deployment → Source: **GitHub Actions** (or add a fine-grained PAT with "Pages: Read and write" as the `PAGES_TOKEN` secret). Then re-run the failed Pages job or push anything: the landing page publishes at `https://soham-0047.github.io/traceflow/` and the demo at `/traceflow/demo/`. This setting cannot be changed by the workflow token or the current PAT — GitHub blocks both (verified: 403 for GITHUB_TOKEN and for a PAT without Pages write).
+2. **Soham:** create the Atlassian dev site, run `forge register` in `app/`, put the app id in `app/manifest.yml` (replacing `REPLACE_AFTER_FORGE_REGISTER`), and add the `FORGE_EMAIL` / `FORGE_API_TOKEN` secrets. Everything Forge-side is scaffolded and unit-tested; `app/README.md` has the steps.
+3. **Run spike S1** (`docs/SPIKES.md`), then fix `app/src/backend/graph.ts` and `packages/core/src/normalize.ts` against real payloads.
+4. **Soham:** run the seeder against the dev site (`npm run seed -w @traceflow/seeder`, dry-run by default, `--apply` for real; needs the env vars in `tools/seeder/src/cli.ts`).
+5. Manual screen-reader pass over the Workbench (NVDA or VoiceOver); the keyboard pass and the automated axe-core audit (in CI since session 4) are done.
+6. Rovo agent (TF-04) once S1 passes: `rovo:agent` / `rovo:action` modules calling the same resolver.
 
 ## Workstreams
 
@@ -97,7 +98,7 @@ Next actions, highest first:
 - [x] Netlify build config
 - [x] Hallmark design lint and progress-table check wired into CI
 - [x] GitHub Pages workflow (`pages.yml`: landing page at `/`, demo at `/demo/`, no secrets)
-- [x] GitHub Pages live: `pages.yml` bootstraps the build source itself (the deploy job flips Settings → Pages to "GitHub Actions" with the workflow token, idempotently, so no manual setup is needed)
+- [ ] GitHub Pages published: the build job is green and the artifact verified; one one-time flip remains (Source: GitHub Actions in repo settings, or a Pages-write PAT as `PAGES_TOKEN`) — the workflow token and the current PAT both get 403 on the Pages settings API
 - [ ] GitHub secrets `FORGE_EMAIL` and `FORGE_API_TOKEN` set
 - [ ] Netlify connected to the repo (optional second URL)
 
@@ -148,7 +149,7 @@ Next actions, highest first:
 ## Verified vs unverified
 Verified (run in the build sandbox, session 4): 69 tests (38 core, 15 UI, 4 demo, 7 app, 5 seeder), typecheck and build across all workspaces, the Forge Custom UI frontend builds with vite, Hallmark static lint 0 FAIL 0 WARN (app scope) and 0 FAIL 0 REFLEX 0 WARN (page scope), the Hallmark **render tier** run with a headless browser at 320 to 1920px over both the site and the four demo views (0 FAIL 0 WARN; three reflexes waived and two finish answers on the record in `packages/ui/src/styles/app.css`), a visual review of all views at 1280 and 390 with screenshots (overview, people, epics, decisions, the four states, the landing page), a keyboard pass (tab order, focus visibility, skip link), an **axe-core accessibility audit** (WCAG 2.x AA + best practices; 13 checks: the landing page and every demo view and forced state at 1280 and 390, `npm run a11y`, also a CI gate), contrast of the muted token on paper at 14.2:1, and no console errors or horizontal overflow on any checked page.
 
-Unverified: everything that touches Atlassian (Forge runtime behaviour, manifest validity, REST payload shapes, KVS call shapes, Rovo, the seeder's REST calls against a real site) and Netlify. The GitHub Pages deployment is verified end to end as of session 4 (site and demo served at the public URLs).
+Unverified: everything that touches Atlassian (Forge runtime behaviour, manifest validity, REST payload shapes, KVS call shapes, Rovo, the seeder's REST calls against a real site), Netlify, and the Pages **deploy** step (the build job and artifact are verified; the deploy step waits on the source flip above).
 
 ## Decision log
 | ID | Decision | Notes |
@@ -175,10 +176,11 @@ Unverified: everything that touches Atlassian (Forge runtime behaviour, manifest
 | D20 | The Forge app ships as a scaffold with a placeholder app id until `forge register`; `forge-deploy.yml` refuses to run with the placeholder in place | `app/README.md` holds the one-time steps |
 | D21 | The seeder seeds the sample story itself (fixtures are the single source); API pages are authored by the token owner, so sole-contributor findings are expected on seeded sites; decisions follow the `Decision: ` title convention read by `deriveDecisions` | `tools/seeder`; honest limits documented in its source |
 | D22 | Lane connectors fan out: per-edge anchors on each card edge and per-edge control points, replacing the single shared midpoint | Fixes the bundled-connector finding from the session 3 visual review |
-| D23 | `pages.yml` bootstraps the Pages build source itself: the deploy job reads `build_type` and flips it to `workflow` with the workflow token before `deploy-pages` runs | The fine-grained PAT has Pages read only (403 on write), and `deploy-pages` 404s while the site is on the legacy branch source. Idempotent, no manual setup, $0 |
+| D23 | Pages needs a one-time source flip that no workflow token can do: the deploy job checks `build_type` and, when it is not `workflow`, tries the settings API with `PAGES_TOKEN` (if provided) and otherwise fails with the exact two fixes | Verified empirically: `PUT /repos/…/pages` → 403 for the Actions GITHUB_TOKEN and for the PAT without Pages write; GraphQL has no Pages mutations. `deploy-pages` 404s while the site is on the legacy branch source |
 | D24 | The accessibility gate is axe-core (WCAG 2.x AA + best practices) over Playwright Chromium, 13 checks in CI; on GitHub runners it falls back to the preinstalled system Chrome | Automated half of the a11y pass; the manual screen-reader pass (NVDA/VoiceOver) is still owed |
 
 ## Blockers needing Soham
+- **Pages source flip (one click):** repo Settings → Pages → Build and deployment → Source: **GitHub Actions**, then re-run the failed Pages job. Alternative: a fine-grained PAT with "Pages: Read and write" stored as the `PAGES_TOKEN` secret, and every run self-heals. Neither the workflow token nor the current PAT can change this setting (403).
 - Confirm that "any tech stack" does not also relax the $0 budget (assumed it does not).
 - Free Atlassian development site, `forge register`, and the real app id in `app/manifest.yml`.
 - GitHub secrets `FORGE_EMAIL` and `FORGE_API_TOKEN`.
@@ -188,7 +190,7 @@ Unverified: everything that touches Atlassian (Forge runtime behaviour, manifest
 - If Teamwork Graph returns an authorization error, ask Atlassian support to allowlist the app ID (see S2).
 
 ## Session log (newest first)
-- **2026-11-07, session 4, latest.** Fixed the failing Pages deploy (`deploy-pages` → HttpError: Not Found): the site was still on the legacy branch source and the PAT cannot flip it (Pages write denied, 403). `pages.yml` now self-serves — its deploy job checks `build_type` and switches it to `workflow` with the workflow's own token before deploying (D23), idempotent, no manual settings change needed. Built the accessibility gate that session 3 owed: `scripts/a11y.mjs` runs axe-core (WCAG 2.x AA + best practices) in headless Chromium over the landing page and every demo view and forced state at 1280/390 — 13 audits, wired into CI and `npm run verify` (D24). It found 6 violations, all fixed: the landing ledger's scroll region is keyboard-focusable with a label, the loading/empty/error panels now carry a real h1 (skeleton gets a visually-hidden one), lane labels moved h3→h2 to keep the heading order, and the three dangling `aria-labelledby` main sections got static labels. Verified: 69 tests, typecheck, build, both lint tiers, 13 a11y audits clean, computed-style parity for the changed headings, no horizontal overflow at either width; Pages deployment verified end to end at the public URLs.
+- **2026-11-07, session 4, latest.** Diagnosed and hardened the Pages deployment. Root cause of `deploy-pages` → HttpError: Not Found: the Pages site was still on the **legacy branch source**, and the setting cannot be flipped programmatically — verified 403 for the Actions GITHUB_TOKEN ("Resource not accessible by integration"), 403 for the fine-grained PAT (Pages write not granted), and no Pages mutations exist in GraphQL. `pages.yml` now checks `build_type` before deploying, tries `PAGES_TOKEN` when that secret exists, and otherwise fails with the exact two fixes instead of the cryptic 404; the build job and artifact are verified green in CI. Built the accessibility gate that session 3 owed: `scripts/a11y.mjs` runs axe-core (WCAG 2.x AA + best practices) in headless Chromium over the landing page and every demo view and forced state at 1280/390 — 13 audits, wired into CI and `npm run verify` (D24), falling back to the runner's system Chrome. It found 6 violations, all fixed: the landing ledger's scroll region is keyboard-focusable with a label, the loading/empty/error panels now carry a real h1 (the skeleton gets a visually-hidden one), lane labels moved h3→h2 to keep the heading order, and the three dangling `aria-labelledby` main sections got static labels. Verified: 69 tests, typecheck, build, both lint tiers, 13 a11y audits clean, computed-style parity for the changed headings, no horizontal overflow at either width.
 - **2026-11-07, session 3, latest.** Overview end to end: `buildOverview` in core (ranked epics, org health counts, coverage) with 6 tests, and a new Overview view as the default landing page (15 UI tests total). Forge app scaffolded in `app/` (manifest with placeholder id, `getGraph` resolver with a unit-tested KVS TTL cache, Custom UI hosting the Workbench, forge adapter with mocked `@forge/bridge` tests, 7 app tests). Seeder in `tools/seeder` (sample story from the fixtures, idempotent planner with 5 tests, dry-run CLI). Landing page in `site/` (Hallmark page flow, Coral page variant locked in `DESIGN.md`, clean on static and render tiers). Hosting: `pages.yml` publishes site + demo to GitHub Pages (D17); `forge-deploy.yml` now refuses the placeholder app id. Real-browser review of every view at 1280/390 with the four states: fixed the double-spaced overview rhythm, fanned the lane connectors out from per-edge anchors (D22), made the ledger scroll with a swipe hint on phones (D19), tightened mobile tables. Render tier run for the first time (site and demo) and brought to 0 FAIL 0 WARN. All checks green: 69 tests, typecheck, build, both lint tiers.
 - **2026-11-06, session 2, latest.** Extracted the UI into `packages/ui` (`Workbench`, props for source note and footer), made `demo/` a thin host with its own adapter tests, retargeted design lint, wrote `docs/demo-script.md` and `packages/ui/README.md`. All checks green: 29 core, 12 UI and 4 demo tests, build, lint.
 - **2026-11-06, session 2, later.** Wrote `PRODUCTS.md`: twelve products in three tiers, the shared contracts, stack defaults, prize mapping and rules for parallel agents. Progress table now reports Tier 1 separately from all tiers. No product code written; T2 and T3 are briefs only.

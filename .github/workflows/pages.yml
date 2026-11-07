@@ -2,16 +2,16 @@ name: Pages (site + demo)
 
 # Publishes the landing page (site/) and the sample-data demo (demo/) to GitHub
 # Pages as one site: the page at / and the demo under /demo/.
-# $0: no external accounts and no secrets; the workflow uses the automatically
-# provided GITHUB_TOKEN.
+# $0: no external accounts; the workflow uses the automatically provided
+# GITHUB_TOKEN.
 #
-# Self-setup: the deploy job first makes sure the Pages site builds from
-# "GitHub Actions" (Settings -> Pages -> Build and deployment -> Source).
-# That single setting is the one thing the REST API kept rejecting for a
-# fine-grained PAT ("Resource not accessible"), and without it
-# actions/deploy-pages fails with HttpError: Not Found. The GITHUB_TOKEN of
-# this workflow carries `pages: write`, so the first run flips the setting
-# itself; later runs see it already set and move on.
+# Pages must build from "GitHub Actions" (Settings -> Pages -> Build and
+# deployment -> Source). GitHub blocks both the GITHUB_TOKEN and read-only
+# PATs from changing that setting, so it cannot be automated from here:
+# either flip it once in the UI, or store a fine-grained PAT with
+# "Pages: Read and write" as the PAGES_TOKEN secret and every run self-heals.
+# The deploy job checks the setting first and fails with these exact steps
+# instead of deploy-pages' cryptic "HttpError: Not Found".
 
 on:
   push:
@@ -56,7 +56,9 @@ jobs:
     steps:
       - name: Ensure Pages builds from GitHub Actions
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN may read but not change Pages settings; a fine-grained
+          # PAT with "Pages: Read and write" stored as PAGES_TOKEN can.
+          GH_TOKEN: ${{ secrets.PAGES_TOKEN || secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -66,18 +68,21 @@ jobs:
             echo "Pages already builds from GitHub Actions; nothing to do."
             exit 0
           fi
-          echo "Pages build_type is '${current:-unset}'; switching it to workflow (GitHub Actions)..."
+          echo "Pages build_type is '${current:-unset}'; trying to switch it to workflow (GitHub Actions)..."
           code="$(curl -sS -o /tmp/pages-put.json -w '%{http_code}' -X PUT \
             -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/$REPO/pages" -d '{"build_type":"workflow"}')"
-          if [ "$code" != "200" ] && [ "$code" != "204" ]; then
-            echo "PUT /repos/$REPO/pages failed with HTTP $code:"
-            cat /tmp/pages-put.json || true
-            echo
-            echo "::error::Could not set the Pages source to GitHub Actions. Flip it once manually (Settings -> Pages -> Build and deployment -> Source: GitHub Actions), then re-run this job."
-            exit 1
+          if [ "$code" = "200" ] || [ "$code" = "204" ]; then
+            echo "Pages source is now GitHub Actions."
+            exit 0
           fi
-          echo "Pages source is now GitHub Actions."
+          echo "PUT /repos/$REPO/pages failed with HTTP $code:"
+          cat /tmp/pages-put.json || true
+          echo
+          echo "::error::The Pages site still builds from the legacy branch source, and only a Pages-write token or the repo UI can change that. Pick one 10-second fix:"
+          echo "::error::1. Repo Settings -> Pages -> Build and deployment -> Source: 'GitHub Actions', then re-run this job (Actions tab -> Pages (site + demo) -> re-run failed jobs)."
+          echo "::error::2. Or add a fine-grained PAT with 'Pages: Read and write' as the PAGES_TOKEN secret, and every run self-heals."
+          exit 1
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
