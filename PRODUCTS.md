@@ -33,7 +33,7 @@ The platform is one shared engine, a few surfaces that show it, and some satelli
 | --- | --- | --- | --- | --- | --- |
 | TF-01 | TraceFlow for Atlassian (Forge app) | T1 | Not started, blocked on `forge create` | Forge, Custom UI (React, TS) | `app/` |
 | TF-02 | TraceFlow Engine | T1 | v1 done, 29 tests | TypeScript, no runtime deps | `packages/core` |
-| TF-03 | TraceFlow Workbench (shared UI and public demo) | T1 | Demo built, shared package not extracted | React 18, TS, Vite | `demo/`, later `packages/ui` |
+| TF-03 | TraceFlow Workbench (shared UI and public demo) | T1 | Built and extracted; needs a real-browser review | React 18, TS, Vite | `packages/ui`, `demo/` |
 | TF-04 | TraceFlow Agent (Rovo agent, actions, optional MCP tools) | T1 | Not started | Forge `rovo:*` modules | `app/` |
 | TF-05 | TraceFlow Seeder (demo data and video kit) | T1 | Not started | Node, TS, Atlassian REST | `tools/seeder` |
 | TF-08 | TraceFlow Site and docs | T1 | Not started | Static site | `site/` |
@@ -98,8 +98,9 @@ Each section is written so one agent can start from it alone.
 
 ### TF-03 TraceFlow Workbench (shared UI and public demo)
 - **What:** the investigation UI: people ranked by risk, handover ledger (records × weight = points), lane-diagram lineage, decisions, evidence card, four states everywhere. The sample-data build is the public demo.
-- **Stack and rules:** React 18, Vite, Hallmark Coral tokens at app scope; read `DESIGN.md` first. Components take reports or a `DataAdapter` through props, never fetch directly.
-- **Done when:** a real-browser visual review passed at desktop and phone widths, Hallmark render-tier lint ran, an accessibility pass is done, the shared components live in `packages/ui` and both the demo and the Forge Custom UI import them, Netlify serves a public URL.
+- **Stack and rules:** React 18, Vite, Hallmark Coral tokens at app scope; read `DESIGN.md` first. Components take a `DataAdapter` or reports through props and never fetch directly.
+- **Where:** the UI is `<Workbench adapter={...} />` in `packages/ui` (see its README); `demo/` is a thin host on sample data. The Forge Custom UI will be a second host.
+- **Done when:** a real-browser visual review passed at desktop and phone widths, Hallmark render-tier lint ran, an accessibility pass is done, the Forge Custom UI hosts the same component, Netlify serves a public URL.
 - **Risks:** no browser was available when it was built, so it has never been looked at.
 
 ### TF-04 TraceFlow Agent (Rovo)

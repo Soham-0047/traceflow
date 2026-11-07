@@ -16,7 +16,8 @@ Several agents may work here at once. Claim a workstream in `docs/PROGRESS.md`, 
 | Path | What |
 | --- | --- |
 | `packages/core` | Pure TypeScript engine: `OrgGraph` types, risk scoring, epic lineage, decision tracing, Jira/Confluence normalizers, sample fixtures. No Atlassian dependency. |
-| `demo` | Vite + React UI on sample data (deployed to Netlify). Imports core from source via an alias. |
+| `packages/ui` | The shared investigation UI (`<Workbench adapter={...} />`) with the Hallmark styles and the UI tests. Consumed from source via an alias. |
+| `demo` | Thin Vite host that serves `@traceflow/ui` on sample data (deployed to Netlify). |
 | `app` | Forge app (TF-01, TF-04). Not created yet; needs `forge create` by Soham (see `app/README.md`). |
 | `tools`, `site`, `packages/*`, `apps/*` | Future products from `PRODUCTS.md` (seeder, site, MCP, check, cloud, connectors). Create the folder when you start the product. |
 | `.github/workflows` | `ci.yml` (verify on every push), `forge-deploy.yml` (manual, untested). |

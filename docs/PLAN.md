@@ -84,7 +84,8 @@ traceflow/
 ├─ docs/PROGRESS.md             living index: what is done, next, verified, blocked
 ├─ docs/SPIKES.md               the four Forge validation spikes
 ├─ packages/core/               pure TS: types, risk, lineage, decisions, normalizers, fixtures, tests
-├─ demo/                        Vite + React UI on sample data (Netlify)                 ← built (session 1)
+├─ packages/ui/                 shared investigation UI (`Workbench`), Hallmark styles, UI tests
+├─ demo/                        thin Vite host on sample data (Netlify)
 ├─ app/                         Forge app (manifest, resolvers, Custom UI, Rovo agent)   ← created after `forge create`
 ├─ .claude/skills/hallmark/     vendored Hallmark design skill (MIT)
 ├─ .hallmark/log.json           Hallmark's record of design builds (keeps variety honest)

@@ -2,15 +2,14 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createStaticAdapter, sampleGraph } from '@traceflow/core';
 import type { DataAdapter, OrgGraph } from '@traceflow/core';
-import { App } from '../App';
-import { createDemoAdapter } from '../adapters';
+import { Workbench } from '../Workbench';
 import { parseHash, hrefFor } from '../router';
 
 const ready = createStaticAdapter('test', sampleGraph);
 
 function open(hash: string, adapter: DataAdapter = ready) {
   window.history.replaceState(null, '', `/${hash}`);
-  return render(<App adapter={adapter} />);
+  return render(<Workbench adapter={adapter} sourceNote="Sample data" />);
 }
 
 describe('router', () => {
@@ -96,7 +95,7 @@ describe('Decisions', () => {
 
 describe('Regions have four states', () => {
   it('loading', async () => {
-    open('', createDemoAdapter('?demo=loading'));
+    open('', { name: 'loading', loadGraph: () => new Promise<OrgGraph>(() => {}) });
     expect(await screen.findByRole('status')).toHaveAttribute('aria-busy', 'true');
   });
 

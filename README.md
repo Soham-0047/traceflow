@@ -38,7 +38,8 @@ TraceFlow provides *audit-ready evidence* and *decision traceability*. It does n
 | `docs/SPIKES.md` | The four Forge validation spikes |
 | `DESIGN.md` | Locked design system and product rules ([Hallmark](https://github.com/Nutlope/hallmark) is vendored in `.claude/skills/hallmark`) |
 | `packages/core` | Pure TypeScript engine: risk, lineage, decisions, normalizers (tested, no Atlassian dependency) |
-| `demo` | The UI on sample data: people ledger, epic lineage, decisions, evidence card |
+| `packages/ui` | The shared investigation UI: people ledger, epic lineage, decisions, evidence card |
+| `demo` | Thin host that serves the UI on sample data |
 | `app/` | Forge app (created after `forge create`) |
 | `.github/workflows` | CI, plus a manual Forge deploy workflow |
 

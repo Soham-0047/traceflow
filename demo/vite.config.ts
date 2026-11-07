@@ -2,18 +2,19 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-// The demo reads the core engine straight from source, so no build step is needed first.
-const core = fileURLToPath(new URL('../packages/core/src/index.ts', import.meta.url));
+// The demo is a thin host: it reads the engine and the shared UI straight from source.
+const at = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
   base: './',
-  resolve: { alias: { '@traceflow/core': core } },
-  build: { outDir: 'dist' },
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./src/test/setup.ts'],
-    css: false,
+  resolve: {
+    alias: [
+      { find: /^@traceflow\/core$/, replacement: at('../packages/core/src/index.ts') },
+      { find: /^@traceflow\/ui\/styles\.css$/, replacement: at('../packages/ui/src/styles/app.css') },
+      { find: /^@traceflow\/ui$/, replacement: at('../packages/ui/src/index.ts') },
+    ],
   },
+  build: { outDir: 'dist' },
+  test: { environment: 'node', globals: true },
 });

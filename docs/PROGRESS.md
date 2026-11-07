@@ -7,12 +7,12 @@ Last updated: 2026-11-06 (session 2). Read `AGENTS.md` first, and see `PRODUCTS.
 | --- | --- | --- | --- | --- |
 | Planning and docs | T1 | 5 | 7 | 71% |
 | TF-02 Engine (packages/core) | T1 | 7 | 12 | 58% |
-| TF-03 Workbench and public demo (demo) | T1 | 7 | 12 | 58% |
+| TF-03 Workbench and public demo (packages/ui, demo) | T1 | 8 | 12 | 67% |
 | TF-01 Forge app (app) | T1 | 0 | 7 | 0% |
 | TF-04 Agent (Rovo) and Teamwork Graph | T1 | 0 | 5 | 0% |
 | CI/CD and hosting | T1 | 4 | 6 | 67% |
 | Submission | T1 | 0 | 4 | 0% |
-| TF-05 Seeder and demo kit (tools/seeder) | T1 | 0 | 3 | 0% |
+| TF-05 Seeder and demo kit (tools/seeder) | T1 | 1 | 3 | 33% |
 | TF-08 Site and docs (site) | T1 | 0 | 3 | 0% |
 | TF-06 MCP server (packages/mcp) | T2 | 0 | 3 | 0% |
 | TF-07 Check, the pull-request provenance gate (packages/check) | T2 | 0 | 3 | 0% |
@@ -20,8 +20,8 @@ Last updated: 2026-11-06 (session 2). Read `AGENTS.md` first, and see `PRODUCTS.
 | TF-10 Connectors (packages/connectors) | T3 | 0 | 3 | 0% |
 | TF-11 Impact, change impact analysis | T3 | 0 | 2 | 0% |
 | TF-12 Promises | T3 | 0 | 2 | 0% |
-| **Tier 1 (ships for the hackathon)** | T1 | **23** | **59** | **39%** |
-| **All tiers** | all | **23** | **75** | **31%** |
+| **Tier 1 (ships for the hackathon)** | T1 | **25** | **59** | **42%** |
+| **All tiers** | all | **25** | **75** | **33%** |
 <!-- progress:end -->
 
 The table counts the checkboxes under **Workstreams** and is rebuilt with `npm run progress:write` (CI fails if it is stale). Counts measure planned tasks, not effort.
@@ -34,7 +34,7 @@ Next actions, highest first:
 2. **Run spike S1** (`docs/SPIKES.md`), then fix `packages/core/src/normalize.ts` against real payloads.
 3. **Visual review of the demo** in a real browser (not possible in the build sandbox): run `npm run dev -w @traceflow/demo`, check the three views at 1280 and 390 wide, then run Hallmark's render tier.
 4. Connect the repo to Netlify (UI, no token) so the demo gets a public URL.
-5. Move the shared UI into a package the Forge Custom UI can import, then wire Forge resolvers to the same `OrgGraph` adapter interface.
+5. Wire Forge resolvers to the `OrgGraph` adapter interface and host `<Workbench>` in the Forge Custom UI (`packages/ui/README.md`).
 
 ## Workstreams
 
@@ -61,19 +61,19 @@ Next actions, highest first:
 - [ ] Overview aggregates (rank epics, organization health)
 - [ ] Document the `OrgGraph` schema in `PRODUCTS.md` once S1 to S4 settle it
 
-### [T1] TF-03 Workbench and public demo (demo)
+### [T1] TF-03 Workbench and public demo (packages/ui, demo)
 - [x] App shell with top bar and hash routing (state lives in the URL)
 - [x] People view: ranking, handover ledger, evidence card
 - [x] Epics view: lane diagram with linked-record highlighting and gaps
 - [x] Decisions view: linked work, people and roles, findings
 - [x] Loading, empty and error states, with `?demo=` switches
-- [x] 12 UI tests (routing, ledger totals, evidence, the four states)
+- [x] 12 UI tests (routing, ledger totals, evidence, the four states) and 4 demo-adapter tests
 - [x] Hallmark static lint at 0 FAIL, 0 WARN
 - [ ] Visual review in a real browser at desktop and phone widths
 - [ ] Hallmark render-tier lint (needs a headless browser)
 - [ ] Keyboard and screen-reader pass
 - [ ] Netlify site connected with a public URL
-- [ ] Extract shared components into `packages/ui` so the Forge Custom UI can import them
+- [x] Extract the UI into `packages/ui` (`Workbench`) so the Forge Custom UI can host it
 
 ### [T1] TF-01 Forge app (app)
 - [ ] App registered with `forge create` (needs Soham)
@@ -108,7 +108,7 @@ Next actions, highest first:
 ### [T1] TF-05 Seeder and demo kit (tools/seeder)
 - [ ] Idempotent seed script for a dev site: epics, pages, remote links, decisions (needs an API token from Soham)
 - [ ] Mapping of the fictional people onto the real dev-site accounts
-- [ ] Demo script and shot list (`docs/demo-script.md`)
+- [x] Demo script and shot list (`docs/demo-script.md`)
 
 ### [T1] TF-08 Site and docs (site)
 - [ ] Choose the static stack and lock a page variant of the design system in `DESIGN.md`
@@ -166,6 +166,7 @@ Unverified: everything that touches Atlassian (Forge deploy, REST payload shapes
 | D13 | Tech stack is open per product; default is TypeScript; the Codegeist app stays on Forge | Soham, 2026-11-06. Budget stays $0 (assumed; see Blockers) |
 | D14 | Work is tiered: T1 ships by Dec 21, T2 only if it helps T1, T3 is briefs until after | Protects the deadline; see `PRODUCTS.md` |
 | D15 | Parallel agents claim a workstream, use `agent/<product>-<topic>` branches and pull requests, keep `main` green | Single-agent pushes to `main` happened in sessions 1 and 2 |
+| D16 | UI lives in `packages/ui` as one `Workbench` component; `demo/` is a thin host | Lets the Forge Custom UI reuse it unchanged |
 
 ## Blockers needing Soham
 - Confirm that "any tech stack" does not also relax the $0 budget (assumed it does not).
@@ -177,6 +178,7 @@ Unverified: everything that touches Atlassian (Forge deploy, REST payload shapes
 - If Teamwork Graph returns an authorization error, ask Atlassian support to allowlist the app ID (see S2).
 
 ## Session log (newest first)
+- **2026-11-06, session 2, latest.** Extracted the UI into `packages/ui` (`Workbench`, props for source note and footer), made `demo/` a thin host with its own adapter tests, retargeted design lint, wrote `docs/demo-script.md` and `packages/ui/README.md`. All checks green: 29 core, 12 UI and 4 demo tests, build, lint.
 - **2026-11-06, session 2, later.** Wrote `PRODUCTS.md`: twelve products in three tiers, the shared contracts, stack defaults, prize mapping and rules for parallel agents. Progress table now reports Tier 1 separately from all tiers. No product code written; T2 and T3 are briefs only.
 - **2026-11-06, session 2.** Vendored Hallmark (MIT) and dealt the Coral theme at app scope. Built `demo/` (People ledger, Epics lane diagram, Decisions, evidence card, four states with `?demo=` switches, 12 UI tests, Hallmark lint at 0 FAIL and 0 WARN). Added `DESIGN.md`, `AGENTS.md`, `CLAUDE.md`, `docs/SPIKES.md`, this index with a generated progress table, the Netlify config, and CI steps for design lint and the progress check. Not done: anything needing Atlassian access, a real browser (no screenshots or render-tier lint), or Netlify.
 - **2026-11-01, session 1.** Researched the direction and platforms (Forge hosting, free allowances, CI, Teamwork Graph Preview status); wrote `docs/PLAN.md`; pushed the first commit. Built `packages/core`: risk scoring and ranking, epic lineage, decision tracing, Jira and Confluence normalizers, rule text, richer fixtures, 29 tests.

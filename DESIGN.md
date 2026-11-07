@@ -9,7 +9,7 @@ The locked system. Every Hallmark run reads this first and pages share it. Chang
 - Axes: light/grotesk-sans/warm · posture: restrained
 
 ## Tokens
-`demo/src/styles/tokens.css` is the source of truth (scaffolded by Hallmark, do not hand-edit values in components). The roles:
+`packages/ui/src/styles/tokens.css` is the source of truth (scaffolded by Hallmark, do not hand-edit values in components). The roles:
 ```css
 :root {
   --color-paper: oklch(97% 0.006 55);  --color-paper-2: oklch(94.5% 0.007 55);  --color-paper-3: oklch(91.5% 0.009 55);
@@ -47,5 +47,5 @@ These sit on top of Hallmark's floor and are the reasons the UI looks the way it
 ## How agents work with this file
 - Before touching UI: read this file, then `.claude/skills/hallmark/SKILL.md` (app-screen branch: `references/flow.md` § App screens).
 - After touching UI: `npm run lint:design` must report **0 FAIL and 0 WARN** (or answered/waived on the record in the CSS stamp block). The render tier (`--render`) needs a headless browser; run it locally when one is available.
-- Keep the Hallmark stamp and critique line at the top of `demo/src/styles/app.css` honest: re-score it when the design changes.
+- Keep the Hallmark stamp and critique line at the top of `packages/ui/src/styles/app.css` honest: re-score it when the design changes.
 - Never add a literal colour or font-family outside `tokens.css`; never `transition: all`; never an eyebrow or tracked-capitals label.

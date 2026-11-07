@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { DataAdapter } from '@traceflow/core';
 import { DataProvider } from './data';
 import { useRoute, hrefFor } from './router';
@@ -12,7 +13,14 @@ const NAV: { view: View; label: string }[] = [
   { view: 'decisions', label: 'Decisions' },
 ];
 
-function Shell() {
+interface ShellProps {
+  /** Short honest note about where the data comes from, shown in the top bar. */
+  sourceNote?: string;
+  /** Optional quiet line at the bottom of the page. */
+  footerNote?: ReactNode;
+}
+
+function Shell({ sourceNote, footerNote }: ShellProps) {
   const route = useRoute();
   return (
     <>
@@ -38,7 +46,7 @@ function Shell() {
               ))}
             </ul>
           </nav>
-          <p className="sample-note">Sample data, not connected to Jira</p>
+          {sourceNote ? <p className="sample-note">{sourceNote}</p> : null}
         </div>
       </header>
       <main id="main" tabIndex={-1}>
@@ -46,20 +54,24 @@ function Shell() {
         {route.view === 'epics' ? <EpicsView /> : null}
         {route.view === 'decisions' ? <DecisionsView /> : null}
       </main>
-      <footer className="foot">
-        <p>
-          A fictional team. To see the other states, add ?demo=loading, ?demo=empty or ?demo=error to the
-          address.
-        </p>
-      </footer>
+      {footerNote ? (
+        <footer className="foot">
+          <p>{footerNote}</p>
+        </footer>
+      ) : null}
     </>
   );
 }
 
-export function App({ adapter }: { adapter: DataAdapter }) {
+export interface WorkbenchProps extends ShellProps {
+  adapter: DataAdapter;
+}
+
+/** The whole TraceFlow investigation UI. Hosts (demo site, Forge Custom UI) supply an adapter. */
+export function Workbench({ adapter, ...shell }: WorkbenchProps) {
   return (
     <DataProvider adapter={adapter}>
-      <Shell />
+      <Shell {...shell} />
     </DataProvider>
   );
 }
