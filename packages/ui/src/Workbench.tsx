@@ -6,11 +6,13 @@ import type { View } from './router';
 import { OverviewView } from './views/Overview';
 import { DecisionsView } from './views/Decisions';
 import { EpicsView } from './views/Epics';
+import { ImpactView } from './views/Impact';
 import { PeopleView } from './views/People';
 
 const NAV: { view: View; label: string }[] = [
   { view: 'overview', label: 'Overview' },
   { view: 'people', label: 'People' },
+  { view: 'impact', label: 'Impact' },
   { view: 'epics', label: 'Epics' },
   { view: 'decisions', label: 'Decisions' },
 ];
@@ -54,6 +56,7 @@ function Shell({ sourceNote, footerNote }: ShellProps) {
       <main id="main" tabIndex={-1}>
         {route.view === 'overview' ? <OverviewView /> : null}
         {route.view === 'people' ? <PeopleView /> : null}
+        {route.view === 'impact' ? <ImpactView /> : null}
         {route.view === 'epics' ? <EpicsView /> : null}
         {route.view === 'decisions' ? <DecisionsView /> : null}
       </main>

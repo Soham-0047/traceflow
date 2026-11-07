@@ -85,6 +85,8 @@ const audits = [
   { label: 'demo overview', url: '/demo/#/overview', viewport: PHONE },
   { label: 'demo people', url: '/demo/#/people', viewport: DESKTOP },
   { label: 'demo people', url: '/demo/#/people', viewport: PHONE },
+  { label: 'demo impact', url: '/demo/#/impact', viewport: DESKTOP },
+  { label: 'demo impact', url: '/demo/#/impact', viewport: PHONE },
   { label: 'demo epics', url: '/demo/#/epics', viewport: DESKTOP },
   { label: 'demo epics', url: '/demo/#/epics', viewport: PHONE },
   { label: 'demo decisions', url: '/demo/#/decisions', viewport: DESKTOP },

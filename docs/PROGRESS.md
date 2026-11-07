@@ -1,41 +1,41 @@
 # TraceFlow progress index
 
-Last updated: 2026-11-07 (session 4). Read `AGENTS.md` first, and see `PRODUCTS.md` for what each workstream builds. This file is the resume point for any new session or agent: update it before you stop.
+Last updated: 2026-11-07 (session 5). Read `AGENTS.md` first, and see `PRODUCTS.md` for what each workstream builds. This file is the resume point for any new session or agent: update it before you stop.
 
 <!-- progress:start -->
 | Workstream | Tier | Done | Total | Complete |
 | --- | --- | --- | --- | --- |
 | Planning and docs | T1 | 5 | 7 | 71% |
-| TF-02 Engine (packages/core) | T1 | 8 | 12 | 67% |
-| TF-03 Workbench and public demo (packages/ui, demo) | T1 | 10 | 12 | 83% |
+| TF-02 Engine (packages/core) | T1 | 9 | 13 | 69% |
+| TF-03 Workbench and public demo (packages/ui, demo) | T1 | 11 | 13 | 85% |
 | TF-01 Forge app (app) | T1 | 3 | 7 | 43% |
 | TF-04 Agent (Rovo) and Teamwork Graph | T1 | 0 | 5 | 0% |
 | CI/CD and hosting | T1 | 5 | 8 | 63% |
 | Submission | T1 | 0 | 4 | 0% |
 | TF-05 Seeder and demo kit (tools/seeder) | T1 | 3 | 3 | 100% |
 | TF-08 Site and docs (site) | T1 | 1 | 3 | 33% |
-| TF-06 MCP server (packages/mcp) | T2 | 0 | 3 | 0% |
-| TF-07 Check, the pull-request provenance gate (packages/check) | T2 | 0 | 3 | 0% |
+| TF-06 MCP server (packages/mcp) | T2 | 3 | 5 | 60% |
+| TF-07 Check, the pull-request provenance gate (packages/check) | T2 | 2 | 4 | 50% |
 | TF-09 Cloud, the standalone web app (apps/cloud) | T3 | 0 | 3 | 0% |
 | TF-10 Connectors (packages/connectors) | T3 | 0 | 3 | 0% |
-| TF-11 Impact, change impact analysis | T3 | 0 | 2 | 0% |
+| TF-11 Impact, change impact analysis | T3 | 2 | 3 | 67% |
 | TF-12 Promises | T3 | 0 | 2 | 0% |
-| **Tier 1 (ships for the hackathon)** | T1 | **35** | **61** | **57%** |
-| **All tiers** | all | **35** | **77** | **45%** |
+| **Tier 1 (ships for the hackathon)** | T1 | **37** | **63** | **59%** |
+| **All tiers** | all | **44** | **83** | **53%** |
 <!-- progress:end -->
 
 The table counts the checkboxes under **Workstreams** and is rebuilt with `npm run progress:write` (CI fails if it is stale). Counts measure planned tasks, not effort.
 
 ## Resume here
-Schedule check on 2026-11-07: 46 days to the Dec 23 deadline. The engine, Workbench, Forge scaffold, seeder and landing page are all built and tested in the sandbox; the Pages build job is verified end to end. The critical path is now two one-time setups: the Pages source flip and Atlassian access.
+Schedule check on 2026-11-07: 46 days to the Dec 23 deadline. The engine (risk, lineage, overview, impact), Workbench (five views), MCP server, PR provenance gate, Forge scaffold, seeder and landing page are all built and tested in the sandbox; the Pages build job is verified end to end. The critical path is now two one-time setups: the Pages source flip and Atlassian access.
 
 Next actions, highest first:
 1. **Soham, one flip:** repo Settings → Pages → Build and deployment → Source: **GitHub Actions** (or add a fine-grained PAT with "Pages: Read and write" as the `PAGES_TOKEN` secret). Then re-run the failed Pages job or push anything: the landing page publishes at `https://soham-0047.github.io/traceflow/` and the demo at `/traceflow/demo/`. This setting cannot be changed by the workflow token or the current PAT — GitHub blocks both (verified: 403 for GITHUB_TOKEN and for a PAT without Pages write).
 2. **Soham:** create the Atlassian dev site, run `forge register` in `app/`, put the app id in `app/manifest.yml` (replacing `REPLACE_AFTER_FORGE_REGISTER`), and add the `FORGE_EMAIL` / `FORGE_API_TOKEN` secrets. Everything Forge-side is scaffolded and unit-tested; `app/README.md` has the steps.
 3. **Run spike S1** (`docs/SPIKES.md`), then fix `app/src/backend/graph.ts` and `packages/core/src/normalize.ts` against real payloads.
-4. **Soham:** run the seeder against the dev site (`npm run seed -w @traceflow/seeder`, dry-run by default, `--apply` for real; needs the env vars in `tools/seeder/src/cli.ts`).
-5. Manual screen-reader pass over the Workbench (NVDA or VoiceOver); the keyboard pass and the automated axe-core audit (in CI since session 4) are done.
-6. Rovo agent (TF-04) once S1 passes: `rovo:agent` / `rovo:action` modules calling the same resolver.
+4. **TF-04 next:** the `rovo:agent` / `rovo:action` / `rovo:mcp` modules can now reuse the MCP tool set (`packages/mcp/src/server.ts`) over the Forge resolver — the heavy engineering is done and tested.
+5. **Soham:** run the seeder against the dev site (`npm run seed -w @traceflow/seeder`, dry-run by default, `--apply` for real; needs the env vars in `tools/seeder/src/cli.ts`).
+6. Manual screen-reader pass over the Workbench (NVDA or VoiceOver); the keyboard pass and the automated axe-core audit (in CI, now 15 checks including the Impact view) are done.
 
 ## Workstreams
 
@@ -55,7 +55,8 @@ Next actions, highest first:
 - [x] Decision tracing (linked work, people with roles, stale or unapproved findings)
 - [x] Jira and Confluence record normalizers and graph builder
 - [x] Plain-language rule text for every finding kind
-- [x] Sample fixtures and 29 unit tests
+- [x] Change-impact module: what is left without a person (`personImpact`: stalled epics including epic ownership, lone work, orphaned pages, blocked decisions, unmerged changes) with `IMPACT_RULES` text
+- [x] Sample fixtures and 43 unit tests
 - [ ] Validate normalizers against live Jira and Confluence payloads (S1)
 - [ ] Map Teamwork Graph results into `OrgGraph` (S2)
 - [ ] Map Bitbucket pull requests into `OrgGraph` (S4)
@@ -75,6 +76,7 @@ Next actions, highest first:
 - [ ] Manual screen-reader pass (NVDA or VoiceOver); keyboard order, focus visibility and labels are done, and the automated axe-core audit (WCAG 2.x AA + best practices, 13 checks over every view and state) runs in CI
 - [ ] Netlify site connected with a public URL (GitHub Pages is the canonical public URL meanwhile; see CI/CD)
 - [x] Extract the UI into `packages/ui` (`Workbench`) so the Forge Custom UI can host it
+- [x] Impact view: blast radius grouped by kind with per-kind counts, evidence drawer from every area, URL state (`#/impact/<person>/finding/<id>`, 5 UI tests)
 
 ### [T1] TF-01 Forge app (app)
 - [ ] App registered with `forge register` (needs Soham; `app/README.md` has the steps)
@@ -119,13 +121,16 @@ Next actions, highest first:
 - [ ] Public URL on the README (live since session 4) and, later, Devpost
 
 ### [T2] TF-06 MCP server (packages/mcp)
-- [ ] Server with `assess_person_risk`, `trace_epic`, `trace_decision`, `list_people_by_risk` on fixtures
-- [ ] Real-site adapter using an API token
-- [ ] README with client configuration
+- [x] Server on the official `@modelcontextprotocol/sdk` with six tools (`list_people`, `person_risk`, `person_impact`, `epic_lineage`, `decision_trace`, `overview`), truth rules in every description, over any `DataAdapter` (sample fixtures by default, `TRACEFLOW_GRAPH` export via env)
+- [x] Protocol-level tests: a real `Client` over the SDK's `InMemoryTransport` (9 tests: tool listing, prefix resolution, evidence in results, helpful failures, custom adapter)
+- [x] README with client configuration (Claude Desktop snippet)
+- [ ] Real-site adapter (waits on the Forge app or an API-token source)
+- [ ] `rovo:mcp` exposure inside the Forge app (ties to TF-04 and the MCP prize)
 
 ### [T2] TF-07 Check, the pull-request provenance gate (packages/check)
-- [ ] CLI: pull-request text to Jira key to intent chain, offline on fixtures
-- [ ] GitHub Action wrapper, run in this repo's CI
+- [x] CLI gate on an OrgGraph export: fail when no work item links to the PR (no provenance) or linked work implements a superseded decision; proposed decisions pass; every reason carries evidence; `--json` and exit codes 0/1/2 (9 tests: gate rules + CLI contract)
+- [x] GitHub Action wrapper (composite action, self-contained esbuild bundle committed at `packages/check/dist/cli.js`)
+- [ ] Run the Action in this repo's own CI (needs a graph export produced by a live app)
 - [ ] Bitbucket Pipe and a real-site mode
 
 ### [T3] TF-09 Cloud, the standalone web app (apps/cloud)
@@ -139,17 +144,19 @@ Next actions, highest first:
 - [ ] Slack or Teams, Drive or Notion, Compass connectors
 
 ### [T3] TF-11 Impact, change impact analysis
-- [ ] Engine module that traverses lineage for a changed decision, epic or person
-- [ ] Impact view in the Workbench
+Promoted from T3 by Soham's instruction in session 5 (D25); the person blast radius shipped.
+- [x] Engine module that traverses the graph for a changed person (`personImpact` in `packages/core`, 5 tests)
+- [x] Impact view in the Workbench (`packages/ui`, 5 UI tests, in the a11y audit set)
+- [ ] Impact for a changed decision or epic (roadmap)
 
 ### [T3] TF-12 Promises
 - [ ] Commitment detection in Confluence notes
 - [ ] On-demand Rovo skill that offers to create and link a Jira issue
 
 ## Verified vs unverified
-Verified (run in the build sandbox, session 4): 69 tests (38 core, 15 UI, 4 demo, 7 app, 5 seeder), typecheck and build across all workspaces, the Forge Custom UI frontend builds with vite, Hallmark static lint 0 FAIL 0 WARN (app scope) and 0 FAIL 0 REFLEX 0 WARN (page scope), the Hallmark **render tier** run with a headless browser at 320 to 1920px over both the site and the four demo views (0 FAIL 0 WARN; three reflexes waived and two finish answers on the record in `packages/ui/src/styles/app.css`), a visual review of all views at 1280 and 390 with screenshots (overview, people, epics, decisions, the four states, the landing page), a keyboard pass (tab order, focus visibility, skip link), an **axe-core accessibility audit** (WCAG 2.x AA + best practices; 13 checks: the landing page and every demo view and forced state at 1280 and 390, `npm run a11y`, also a CI gate), contrast of the muted token on paper at 14.2:1, and no console errors or horizontal overflow on any checked page.
+Verified (run in the build sandbox, session 5): 97 tests (43 core, 20 UI, 9 MCP, 9 check, 4 demo, 7 app, 5 seeder), typecheck and build across all workspaces, the Forge Custom UI frontend builds with vite, the MCP server answered a real JSON-RPC handshake, tools/list and a tools/call over stdio from its built CLI, the check gate's bundled CLI produced correct verdicts and exit codes (0/1/2) on pass, fail and error cases, Hallmark static lint 0 FAIL 0 WARN (app scope) and 0 FAIL 0 REFLEX 0 WARN (page scope), the Hallmark **render tier** run with a headless browser at 320 to 1920px over both the site and the demo views, a visual review of all views at 1280 and 390, a keyboard pass (tab order, focus visibility, skip link), an **axe-core accessibility audit** (WCAG 2.x AA + best practices; 15 checks: the landing page and every demo view including Impact and forced state at 1280 and 390, `npm run a11y`, also a CI gate), contrast of the muted token on paper at 14.2:1, and no console errors or horizontal overflow on any checked page.
 
-Unverified: everything that touches Atlassian (Forge runtime behaviour, manifest validity, REST payload shapes, KVS call shapes, Rovo, the seeder's REST calls against a real site), Netlify, and the Pages **deploy** step (the build job and artifact are verified; the deploy step waits on the source flip above).
+Unverified: everything that touches Atlassian (Forge runtime behaviour, manifest validity, REST payload shapes, KVS call shapes, Rovo, the seeder's REST calls against a real site), Netlify, the Pages **deploy** step (the build job and artifact are verified; the deploy step waits on the source flip above), and the check Action inside a real consumer workflow (the composite step and the bundled CLI are tested locally, action.yml follows the documented composite-action contract).
 
 ## Decision log
 | ID | Decision | Notes |
@@ -178,6 +185,9 @@ Unverified: everything that touches Atlassian (Forge runtime behaviour, manifest
 | D22 | Lane connectors fan out: per-edge anchors on each card edge and per-edge control points, replacing the single shared midpoint | Fixes the bundled-connector finding from the session 3 visual review |
 | D23 | Pages needs a one-time source flip that no workflow token can do: the deploy job checks `build_type` and, when it is not `workflow`, tries the settings API with `PAGES_TOKEN` (if provided) and otherwise fails with the exact two fixes | Verified empirically: `PUT /repos/…/pages` → 403 for the Actions GITHUB_TOKEN and for the PAT without Pages write; GraphQL has no Pages mutations. `deploy-pages` 404s while the site is on the legacy branch source |
 | D24 | The accessibility gate is axe-core (WCAG 2.x AA + best practices) over Playwright Chromium, 13 checks in CI; on GitHub runners it falls back to the preinstalled system Chrome | Automated half of the a11y pass; the manual screen-reader pass (NVDA/VoiceOver) is still owed |
+| D25 | TF-11 (Impact) is promoted from T3 to now, and TF-06/TF-07 (T2) are started, on Soham's session-5 instruction to "implement more features" | All three are fully verifiable in the sandbox with no Atlassian access; T1 remains the critical path |
+| D26 | The MCP server is built on the official `@modelcontextprotocol/sdk` with six `traceflow_*` tools over the `DataAdapter` contract; every tool description carries the truth rules | Protocol-level tests over `InMemoryTransport`; `rovo:mcp` (the Codegeist MCP prize) reuses the same tools inside Forge later |
+| D27 | The check gate fails only on a missing work-item link or a superseded decision; a proposed decision passes (work may start while approval is pending), and the Action consumes a committed esbuild bundle so no install step is needed | `packages/check/action.yml`; exit codes 0 pass / 1 verdict-fail / 2 usage |
 
 ## Blockers needing Soham
 - **Pages source flip (one click):** repo Settings → Pages → Build and deployment → Source: **GitHub Actions**, then re-run the failed Pages job. Alternative: a fine-grained PAT with "Pages: Read and write" stored as the `PAGES_TOKEN` secret, and every run self-heals. Neither the workflow token nor the current PAT can change this setting (403).
@@ -190,6 +200,7 @@ Unverified: everything that touches Atlassian (Forge runtime behaviour, manifest
 - If Teamwork Graph returns an authorization error, ask Atlassian support to allowlist the app ID (see S2).
 
 ## Session log (newest first)
+- **2026-11-07, session 5, latest.** The engine satellites sprint, on Soham's "implement more features" instruction: one engine, three new surfaces. **TF-11 Impact** (promoted from T3, D25): `personImpact` in core — the blast radius of one person as evidence-backed areas (stalled epics, where owning the epic record itself counts; lone un-epicked work; orphaned sole-contributor pages; blocked decisions, split by owner vs outstanding approver; unmerged changes), 5 tests, plus a fifth Workbench view with per-kind counts, an evidence drawer from every row and full URL state (5 UI tests). **TF-06 MCP server** (`packages/mcp`, D26): six `traceflow_*` tools on the official `@modelcontextprotocol/sdk` over the same `DataAdapter` contract (sample fixtures by default, any OrgGraph export via `TRACEFLOW_GRAPH`); truth rules in every tool description; 9 protocol-level tests with a real `Client` over `InMemoryTransport`; the built CLI answered a real JSON-RPC handshake, tools/list and a person_impact tools/call over stdio. **TF-07 Check** (`packages/check`, D27): the pull-request provenance gate — fail on no linked work item or a superseded decision, pass on proposed; evidence under every reason; `--json`, exit codes 0/1/2; 9 tests (gate rules + CLI contract); composite GitHub Action (`action.yml`) consuming a committed self-contained esbuild bundle; the bundled CLI verified end-to-end on pass/fail/usage cases. Fixed en route: epic records were first counted as un-epicked work — epics are containers, and epic ownership now yields its own stalled-epic signal; `.gitignore` exception commits the check bundle; the a11y audit set grew to 15 checks with the Impact view; esbuild resolves core via tsconfig paths so the bundle never depends on build order. Verified: 97 tests, typecheck, build, both lint tiers, a11y clean, stdio and CLI smoke tests.
 - **2026-11-07, session 4, latest.** Diagnosed and hardened the Pages deployment. Root cause of `deploy-pages` → HttpError: Not Found: the Pages site was still on the **legacy branch source**, and the setting cannot be flipped programmatically — verified 403 for the Actions GITHUB_TOKEN ("Resource not accessible by integration"), 403 for the fine-grained PAT (Pages write not granted), and no Pages mutations exist in GraphQL. `pages.yml` now checks `build_type` before deploying, tries `PAGES_TOKEN` when that secret exists, and otherwise fails with the exact two fixes instead of the cryptic 404; the build job and artifact are verified green in CI. Built the accessibility gate that session 3 owed: `scripts/a11y.mjs` runs axe-core (WCAG 2.x AA + best practices) in headless Chromium over the landing page and every demo view and forced state at 1280/390 — 13 audits, wired into CI and `npm run verify` (D24), falling back to the runner's system Chrome. It found 6 violations, all fixed: the landing ledger's scroll region is keyboard-focusable with a label, the loading/empty/error panels now carry a real h1 (the skeleton gets a visually-hidden one), lane labels moved h3→h2 to keep the heading order, and the three dangling `aria-labelledby` main sections got static labels. Verified: 69 tests, typecheck, build, both lint tiers, 13 a11y audits clean, computed-style parity for the changed headings, no horizontal overflow at either width.
 - **2026-11-07, session 3, latest.** Overview end to end: `buildOverview` in core (ranked epics, org health counts, coverage) with 6 tests, and a new Overview view as the default landing page (15 UI tests total). Forge app scaffolded in `app/` (manifest with placeholder id, `getGraph` resolver with a unit-tested KVS TTL cache, Custom UI hosting the Workbench, forge adapter with mocked `@forge/bridge` tests, 7 app tests). Seeder in `tools/seeder` (sample story from the fixtures, idempotent planner with 5 tests, dry-run CLI). Landing page in `site/` (Hallmark page flow, Coral page variant locked in `DESIGN.md`, clean on static and render tiers). Hosting: `pages.yml` publishes site + demo to GitHub Pages (D17); `forge-deploy.yml` now refuses the placeholder app id. Real-browser review of every view at 1280/390 with the four states: fixed the double-spaced overview rhythm, fanned the lane connectors out from per-edge anchors (D22), made the ledger scroll with a swipe hint on phones (D19), tightened mobile tables. Render tier run for the first time (site and demo) and brought to 0 FAIL 0 WARN. All checks green: 69 tests, typecheck, build, both lint tiers.
 - **2026-11-06, session 2, latest.** Extracted the UI into `packages/ui` (`Workbench`, props for source note and footer), made `demo/` a thin host with its own adapter tests, retargeted design lint, wrote `docs/demo-script.md` and `packages/ui/README.md`. All checks green: 29 core, 12 UI and 4 demo tests, build, lint.

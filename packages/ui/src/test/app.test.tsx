@@ -129,6 +129,54 @@ describe('Decisions', () => {
   });
 });
 
+describe('Impact', () => {
+  it('opens on the highest-risk person with the blast-radius counts', async () => {
+    open('#/impact');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alex Rivera: what is left behind' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Change impact' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Stalled epics' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Orphaned knowledge' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Blocked decisions' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Unmerged changes' })).toBeInTheDocument();
+  });
+
+  it('fills the evidence drawer from an impact row and keeps the selection in the URL', async () => {
+    const user = userEvent.setup();
+    open('#/impact');
+    await screen.findByRole('heading', { level: 1, name: 'Alex Rivera: what is left behind' });
+    expect(screen.getByText(/Select a finding to see why it was flagged/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /open issue\(s\) in Payments reliability stall/ }));
+    const drawer = screen.getByRole('complementary');
+    expect(within(drawer).getByText('Why it was flagged')).toBeInTheDocument();
+    expect(within(drawer).getByText('Fix duplicate charge on retry')).toBeInTheDocument();
+    expect(window.location.hash).toContain('/finding/stalled-epic-0');
+  });
+
+  it('restores a selected orphaned page from the URL', async () => {
+    open('#/impact/alex/finding/orphaned-page-2');
+    const drawer = await screen.findByRole('complementary');
+    expect(await within(drawer).findAllByText('Auth service runbook').then((els) => els.length >= 1)).toBe(true);
+    expect(within(drawer).getByText(/only recorded contributor/)).toBeInTheDocument();
+  });
+
+  it('shows a clean impact for someone with nothing tied to them alone', async () => {
+    const quiet: OrgGraph = {
+      ...sampleGraph,
+      people: [...sampleGraph.people, { id: 'jordan', name: 'Jordan Blake' }],
+    };
+    open('#/impact/jordan', createStaticAdapter('quiet', quiet));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Jordan Blake: what is left behind' })).toBeInTheDocument();
+    expect(screen.getByText(/Nothing in the connected records depends on Jordan Blake alone/)).toBeInTheDocument();
+  });
+
+  it('shows an empty state when nobody is connected', async () => {
+    const empty: OrgGraph = { people: [], workItems: [], pages: [], pullRequests: [], decisions: [] };
+    open('#/impact', createStaticAdapter('empty', empty));
+    expect(await screen.findByRole('heading', { name: 'No people yet' })).toBeInTheDocument();
+  });
+});
+
 describe('Regions have four states', () => {
   it('loading', async () => {
     open('', { name: 'loading', loadGraph: () => new Promise<OrgGraph>(() => {}) });

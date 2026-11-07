@@ -1,0 +1,41 @@
+name: 'TraceFlow Check'
+description: >-
+  Gate a pull request on decision provenance: the change must trace to recorded
+  work, and no linked work may implement a superseded decision. Evidence-first,
+  from a TraceFlow OrgGraph export.
+branding:
+  icon: 'shield'
+  color: 'orange'
+
+inputs:
+  graph-file:
+    description: 'Path to an OrgGraph JSON export (relative to the workspace, or absolute).'
+    required: true
+  pr-id:
+    description: >-
+      The pull request id exactly as it appears in the OrgGraph (for example
+      "pr-31", or a Bitbucket/GitHub PR reference fed from the event context).
+    required: true
+
+outputs:
+  verdict:
+    description: '"pass" or "fail" (or "error" when the check could not run).'
+    value: ${{ steps.check.outputs.verdict }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: check
+      shell: bash
+      run: |
+        set -uo pipefail
+        graph="${{ inputs.graph-file }}"
+        case "$graph" in /*) ;; *) graph="$GITHUB_WORKSPACE/$graph" ;; esac
+        set +e
+        output="$(node "${{ github.action_path }}/dist/cli.js" --graph "$graph" --pr "${{ inputs.pr-id }}" --json 2>&1)"
+        code=$?
+        set -e
+        printf '%s\n' "$output"
+        verdict="$(printf '%s' "$output" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).verdict)}catch(e){console.log("error")}})')"
+        echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+        exit $code

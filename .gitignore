@@ -11,3 +11,8 @@ app/src/frontend/build/
 # Hallmark render-tier screenshots (local artifacts)
 .hallmark/shots/
 site/.hallmark/
+# Exception: the check gate bundle is committed so the GitHub Action can run it
+# without an install step (it is small and self-contained).
+!packages/check/dist/
+# Local assembled Pages preview (site + demo), never committed
+pages-out/

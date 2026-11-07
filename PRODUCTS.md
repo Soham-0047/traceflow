@@ -32,16 +32,16 @@ The platform is one shared engine, a few surfaces that show it, and some satelli
 | ID | Product | Tier | Status | Stack | Lives in |
 | --- | --- | --- | --- | --- | --- |
 | TF-01 | TraceFlow for Atlassian (Forge app) | T1 | Scaffolded and unit-tested; UNVERIFIED until deployed (needs `forge register`) | Forge, Custom UI (React, TS) | `app/` |
-| TF-02 | TraceFlow Engine | T1 | v1.1: overview aggregates added; 38 tests | TypeScript, no runtime deps | `packages/core` |
-| TF-03 | TraceFlow Workbench (shared UI and public demo) | T1 | Reviewed in a real browser at two widths; render-tier lint clean; keyboard pass and axe-core a11y gate in CI done; manual screen-reader pass owed | React 18, TS, Vite | `packages/ui`, `demo/` |
+| TF-02 | TraceFlow Engine | T1 | v1.2: change-impact module added; 43 tests | TypeScript, no runtime deps | `packages/core` |
+| TF-03 | TraceFlow Workbench (shared UI and public demo) | T1 | Five views including Impact; reviewed in a real browser; render-tier lint clean; keyboard pass and axe-core a11y gate (15 checks) in CI; manual screen-reader pass owed | React 18, TS, Vite | `packages/ui`, `demo/` |
 | TF-04 | TraceFlow Agent (Rovo agent, actions, optional MCP tools) | T1 | Not started | Forge `rovo:*` modules | `app/` |
 | TF-05 | TraceFlow Seeder (demo data and video kit) | T1 | Planner written and unit-tested; REST apply UNVERIFIED until a real run | Node, TS, Atlassian REST | `tools/seeder` |
 | TF-08 | TraceFlow Site and docs | T1 | Built, lint clean on both tiers, a11y gate in CI; public URL waits on the one-time Pages source flip | Static site | `site/` |
-| TF-06 | TraceFlow MCP (standalone server for any AI agent) | T2 | Not started | TS, MCP SDK | `packages/mcp` |
-| TF-07 | TraceFlow Check (provenance gate for pull requests) | T2 | Not started | Node CLI, GitHub Action, Bitbucket Pipe | `packages/check` |
+| TF-06 | TraceFlow MCP (standalone server for any AI agent) | T2 | Built on the official MCP SDK: six tools over the DataAdapter contract, 9 protocol-level tests, stdio CLI verified; real-site adapter and rovo:mcp pending | TS, MCP SDK | `packages/mcp` |
+| TF-07 | TraceFlow Check (provenance gate for pull requests) | T2 | CLI + composite GitHub Action built and tested (9 tests, bundle verified end-to-end); real-site mode pending | Node CLI, GitHub Action, Bitbucket Pipe | `packages/check` |
 | TF-09 | TraceFlow Cloud (standalone web app) | T3 | Not started | TS full stack | `apps/cloud` |
 | TF-10 | TraceFlow Connectors (more sources) | T3 | Not started | TS packages | `packages/connectors/*` |
-| TF-11 | TraceFlow Impact (change impact analysis) | T3 | Not started | Engine module and UI view | `packages/core`, `demo` |
+| TF-11 | TraceFlow Impact (change impact analysis) | T3 | Person blast radius shipped in session 5 (engine module + Impact view, promoted from T3 per D25); decision/epic impact is roadmap | Engine module and UI view | `packages/core`, `demo` |
 | TF-12 | TraceFlow Promises (commitments without tickets) | T3 | Not started | Rovo skill, engine module | `packages/core`, `app/` |
 
 ## Prize mapping (from `Resources` in the project files)
@@ -120,14 +120,16 @@ Each section is written so one agent can start from it alone.
 - **Done when:** public URL linked from Devpost and the README.
 
 ### TF-06 TraceFlow MCP (standalone)
-- **What:** an MCP server that lets any AI agent (Claude, Cursor, Codex) call the engine: `assess_person_risk`, `trace_epic`, `trace_decision`, `list_people_by_risk`. Runs on fixtures or, with an API token, on a real site.
-- **Why:** it makes the engine usable by the agents working on this repo and shows the evidence-first approach to a wider audience.
-- **Done when:** a desktop agent lists and calls the tools on sample data; README has the config. It does not count for the MCP prize unless the Forge app also exposes `rovo:mcp`.
+- **What:** an MCP server that lets any AI agent (Claude, Cursor, Codex) call the engine. Built on the official `@modelcontextprotocol/sdk`: six tools (`traceflow_list_people`, `traceflow_person_risk`, `traceflow_person_impact`, `traceflow_epic_lineage`, `traceflow_decision_trace`, `traceflow_overview`) over the `DataAdapter` contract — sample fixtures by default, any `OrgGraph` export via `TRACEFLOW_GRAPH`.
+- **Why:** it makes the engine usable by the agents working on this repo and shows the evidence-first approach to a wider audience. The tool set is designed to be re-exposed as `rovo:mcp` inside the Forge app.
+- **Status:** built and tested at the protocol level (a real `Client` over `InMemoryTransport`, 9 tests; the stdio CLI answered a handshake, tools/list and a tools/call in a smoke test). Remaining: a real-site adapter and the `rovo:mcp` module. It does not count for the MCP prize unless the Forge app also exposes `rovo:mcp`.
+- **Where:** `packages/mcp` (see its README for the Claude Desktop config).
 
 ### TF-07 TraceFlow Check (provenance gate for pull requests)
-- **What:** a CLI, a GitHub Action and a Bitbucket Pipe. Given a pull request, extract the Jira key, fetch the issue and its linked pages and decisions, and report the chain from intent to change. Warn or fail when no specification or decision is linked.
-- **Why:** it carries the original "pull request to Jira to Confluence" idea into CI and reuses the lineage engine. Wording stays "audit-ready evidence", never "SOC 2 proof".
-- **Done when:** runs offline on fixtures in this repo's CI; runs against a real site with secrets; posts a readable comment.
+- **What:** a CLI, a GitHub Action and (roadmap) a Bitbucket Pipe. Given an `OrgGraph` export and a pull-request id, the gate fails when no work item links to the change (no recorded provenance from code to intent) or when linked work implements a superseded decision; a proposed decision passes, because work may start while approval is pending. Every reason carries its evidence records.
+- **Why:** it carries the original "pull request to Jira to Confluence" idea into CI and reuses the same engine and graph contract. Wording stays "audit-ready evidence", never "SOC 2 proof".
+- **Status:** CLI and composite GitHub Action built (`packages/check/action.yml` runs the committed self-contained bundle; no install step); 9 tests; the bundled CLI verified end-to-end on pass, fail and usage cases with exit codes 0/1/2. Remaining: run it in this repo's CI against a live graph export, Bitbucket Pipe, real-site mode.
+- **Where:** `packages/check`.
 
 ### TF-09 TraceFlow Cloud (standalone web app, T3)
 - **What:** a web app outside Forge: Atlassian OAuth 2.0 (3LO), many sites, scheduled syncs, snapshots so risk can be shown over time.
@@ -138,8 +140,9 @@ Each section is written so one agent can start from it alone.
 - **What:** more sources behind `DataAdapter`: GitHub (pull requests linked by issue key), Bitbucket, Slack or Teams (decision threads), Google Drive or Notion (documents as pages), Compass (components and owners).
 - **Rule:** each connector ships a contract test that feeds recorded payloads and asserts a valid `OrgGraph`.
 
-### TF-11 TraceFlow Impact (T3)
+### TF-11 TraceFlow Impact (promoted from T3, D25)
 - **What:** change impact analysis: when a decision changes, an epic's scope changes or a person leaves, which work, documents and people are affected, ranked, with "who needs to know". Traverses the lineage graph; same evidence rules.
+- **Status:** the person blast radius shipped in session 5 — `personImpact` in `packages/core` (stalled epics, where owning the epic record itself counts; lone un-epicked work; orphaned pages; blocked decisions; unmerged changes; every area evidence-backed, 5 tests) and an Impact view in the Workbench (per-kind counts, evidence drawer, URL state, 5 UI tests, covered by the a11y gate). Decision and epic impact stay roadmap.
 
 ### TF-12 TraceFlow Promises (T3)
 - **What:** find explicit commitments in Confluence meeting notes ("we will ship OAuth by Nov 15") that have no Jira issue, and offer to create and link one. On-demand Rovo skill first; scheduled scanning only after that works.

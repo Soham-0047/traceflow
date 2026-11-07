@@ -1,5 +1,6 @@
 export * from './types.js';
 export * from './risk.js';
+export * from './impact.js';
 export * from './lineage.js';
 export * from './overview.js';
 export * from './adapter.js';
