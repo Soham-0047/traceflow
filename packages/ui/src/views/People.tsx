@@ -67,7 +67,7 @@ function PeopleReady({ graph }: { graph: OrgGraph }) {
         </table>
       </section>
 
-      <section className="main" aria-labelledby="person-heading">
+      <section className="main" aria-label="Person investigation">
         {!current ? (
           <EmptyState title="Person not found">Pick someone from the list.</EmptyState>
         ) : (

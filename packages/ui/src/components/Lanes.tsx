@@ -144,7 +144,7 @@ export function Lanes({
         const nodes = report.nodes.filter((n) => n.lane === lane);
         return (
           <section className="lane" key={lane} aria-label={`${label}, ${nodes.length} records`}>
-            <h3 className="lane-label">{label}</h3>
+            <h2 className="lane-label">{label}</h2>
             {nodes.length === 0 ? <p className="lane-none">None linked</p> : null}
             {nodes.map((n) => (
               <button

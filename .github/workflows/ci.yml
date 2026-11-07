@@ -21,6 +21,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Accessibility audit (axe-core over the site and every demo view)
+        run: npm run a11y
       - name: Design lint (Hallmark, app scope)
         run: npm run lint:design
       - name: Design lint (Hallmark, page scope, site)

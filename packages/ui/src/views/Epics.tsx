@@ -108,7 +108,7 @@ function EpicsReady({ graph }: { graph: OrgGraph }) {
         </table>
       </section>
 
-      <section className="main" aria-labelledby="epic-heading">
+      <section className="main" aria-label="Epic lineage">
         {!report ? (
           <EmptyState title="Epic not found">Pick an epic from the list.</EmptyState>
         ) : (

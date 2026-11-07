@@ -159,8 +159,8 @@ th.num { font-family: var(--font-body); }
 
 /* States */
 .state { display: grid; gap: var(--space-sm); justify-items: start; padding: var(--space-xl) 0; max-width: 42rem; }
-.state h2 { font-size: var(--text-xl); }
-.state-error h2 { color: var(--color-error); }
+.state h1, .state h2 { font-size: var(--text-xl); }
+.state-error h1, .state-error h2 { color: var(--color-error); }
 .sk-stack { display: grid; gap: var(--space-sm); width: min(100%, 42rem); }
 .sk { display: block; border-radius: var(--radius-input); background: var(--color-paper-3); animation: sk-pulse 1.3s var(--ease-in-out) infinite alternate; }
 .sk-title { height: 2rem; width: 40%; }

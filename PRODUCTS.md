@@ -36,7 +36,7 @@ The platform is one shared engine, a few surfaces that show it, and some satelli
 | TF-03 | TraceFlow Workbench (shared UI and public demo) | T1 | Reviewed in a real browser at two widths; render-tier lint clean; keyboard pass done | React 18, TS, Vite | `packages/ui`, `demo/` |
 | TF-04 | TraceFlow Agent (Rovo agent, actions, optional MCP tools) | T1 | Not started | Forge `rovo:*` modules | `app/` |
 | TF-05 | TraceFlow Seeder (demo data and video kit) | T1 | Planner written and unit-tested; REST apply UNVERIFIED until a real run | Node, TS, Atlassian REST | `tools/seeder` |
-| TF-08 | TraceFlow Site and docs | T1 | Landing page built, lint clean on both tiers; public URL waits on Pages | Static site | `site/` |
+| TF-08 | TraceFlow Site and docs | T1 | Live on GitHub Pages (landing at `/`, demo at `/demo/`); lint clean on both tiers; a11y audit in CI | Static site | `site/` |
 | TF-06 | TraceFlow MCP (standalone server for any AI agent) | T2 | Not started | TS, MCP SDK | `packages/mcp` |
 | TF-07 | TraceFlow Check (provenance gate for pull requests) | T2 | Not started | Node CLI, GitHub Action, Bitbucket Pipe | `packages/check` |
 | TF-09 | TraceFlow Cloud (standalone web app) | T3 | Not started | TS full stack | `apps/cloud` |

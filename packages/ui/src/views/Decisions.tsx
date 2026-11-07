@@ -66,7 +66,7 @@ function DecisionsReady({ graph }: { graph: OrgGraph }) {
         </table>
       </section>
 
-      <section className="main" aria-labelledby="decision-heading">
+      <section className="main" aria-label="Decision investigation">
         {!report ? (
           <EmptyState title="Decision not found">Pick a decision from the list.</EmptyState>
         ) : (

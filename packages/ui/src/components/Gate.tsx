@@ -9,6 +9,8 @@ export function GraphGate({ label, children }: { label: string; children: (graph
   if (state.status === 'loading') {
     return (
       <div className="workspace workspace-single">
+        {/* The view's own h1 only exists once data is ready; the skeleton still needs a page heading. */}
+        <h1 className="visually-hidden">{label}</h1>
         <LoadingRegion label={label} />
       </div>
     );
