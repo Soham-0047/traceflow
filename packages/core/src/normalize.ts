@@ -132,3 +132,31 @@ export function buildOrgGraph(input: BuildGraphInput): OrgGraph {
     decisions: input.decisions ?? [],
   };
 }
+
+/**
+ * Derive decision records from pages by convention: a page whose title starts with
+ * "Decision: " is a decision record. Activity data cannot detect approvals or
+ * outstanding approvers, so every derived decision stays `proposed` with no pending
+ * approvers (coverage-aware: we never flag what the connected data cannot show).
+ * The owner is the first recorded contributor; linked work comes from work items
+ * whose remote links point at the decision page.
+ */
+export function deriveDecisions(pages: Page[], workItems: WorkItem[]): Decision[] {
+  const workByPageId = new Map<string, string[]>();
+  for (const w of workItems) {
+    for (const pid of w.linkedPageIds ?? []) {
+      if (!workByPageId.has(pid)) workByPageId.set(pid, []);
+      workByPageId.get(pid)!.push(w.ref.id);
+    }
+  }
+
+  return pages
+    .filter((p) => /^Decision:\s/.test(p.ref.title) && p.contributorIds.length > 0)
+    .map((p) => ({
+      ref: p.ref,
+      ownerId: p.contributorIds[0]!,
+      status: 'proposed' as const,
+      pendingApproverIds: [],
+      linkedWorkItemIds: workByPageId.get(p.ref.id),
+    }));
+}

@@ -1,40 +1,41 @@
 # TraceFlow progress index
 
-Last updated: 2026-11-06 (session 2). Read `AGENTS.md` first, and see `PRODUCTS.md` for what each workstream builds. This file is the resume point for any new session or agent: update it before you stop.
+Last updated: 2026-11-07 (session 3). Read `AGENTS.md` first, and see `PRODUCTS.md` for what each workstream builds. This file is the resume point for any new session or agent: update it before you stop.
 
 <!-- progress:start -->
 | Workstream | Tier | Done | Total | Complete |
 | --- | --- | --- | --- | --- |
 | Planning and docs | T1 | 5 | 7 | 71% |
-| TF-02 Engine (packages/core) | T1 | 7 | 12 | 58% |
-| TF-03 Workbench and public demo (packages/ui, demo) | T1 | 8 | 12 | 67% |
-| TF-01 Forge app (app) | T1 | 0 | 7 | 0% |
+| TF-02 Engine (packages/core) | T1 | 8 | 12 | 67% |
+| TF-03 Workbench and public demo (packages/ui, demo) | T1 | 10 | 12 | 83% |
+| TF-01 Forge app (app) | T1 | 3 | 7 | 43% |
 | TF-04 Agent (Rovo) and Teamwork Graph | T1 | 0 | 5 | 0% |
-| CI/CD and hosting | T1 | 4 | 6 | 67% |
+| CI/CD and hosting | T1 | 5 | 8 | 63% |
 | Submission | T1 | 0 | 4 | 0% |
-| TF-05 Seeder and demo kit (tools/seeder) | T1 | 1 | 3 | 33% |
-| TF-08 Site and docs (site) | T1 | 0 | 3 | 0% |
+| TF-05 Seeder and demo kit (tools/seeder) | T1 | 3 | 3 | 100% |
+| TF-08 Site and docs (site) | T1 | 1 | 3 | 33% |
 | TF-06 MCP server (packages/mcp) | T2 | 0 | 3 | 0% |
 | TF-07 Check, the pull-request provenance gate (packages/check) | T2 | 0 | 3 | 0% |
 | TF-09 Cloud, the standalone web app (apps/cloud) | T3 | 0 | 3 | 0% |
 | TF-10 Connectors (packages/connectors) | T3 | 0 | 3 | 0% |
 | TF-11 Impact, change impact analysis | T3 | 0 | 2 | 0% |
 | TF-12 Promises | T3 | 0 | 2 | 0% |
-| **Tier 1 (ships for the hackathon)** | T1 | **25** | **59** | **42%** |
-| **All tiers** | all | **25** | **75** | **33%** |
+| **Tier 1 (ships for the hackathon)** | T1 | **35** | **61** | **57%** |
+| **All tiers** | all | **35** | **77** | **45%** |
 <!-- progress:end -->
 
 The table counts the checkboxes under **Workstreams** and is rebuilt with `npm run progress:write` (CI fails if it is stale). Counts measure planned tasks, not effort.
 
 ## Resume here
-Schedule check on 2026-11-06: 47 days to the Dec 23 deadline. The plan's Nov 1 to 8 window for setup and spikes is nearly used up and is still waiting on the Atlassian dev site, so that is the critical path.
+Schedule check on 2026-11-07: 46 days to the Dec 23 deadline. The engine, Workbench, Forge scaffold, seeder and landing page are all built and tested in the sandbox; the critical path is still Atlassian access.
 
 Next actions, highest first:
-1. **Soham:** create the Atlassian dev site, run `forge create`, share the `app.id` line, add the two GitHub secrets (see Blockers). Nothing Forge-side can start before this.
-2. **Run spike S1** (`docs/SPIKES.md`), then fix `packages/core/src/normalize.ts` against real payloads.
-3. **Visual review of the demo** in a real browser (not possible in the build sandbox): run `npm run dev -w @traceflow/demo`, check the three views at 1280 and 390 wide, then run Hallmark's render tier.
-4. Connect the repo to Netlify (UI, no token) so the demo gets a public URL.
-5. Wire Forge resolvers to the `OrgGraph` adapter interface and host `<Workbench>` in the Forge Custom UI (`packages/ui/README.md`).
+1. **Soham:** enable GitHub Pages (repo Settings → Pages → Build and deployment → Source: **GitHub Actions**). The `pages.yml` workflow then publishes the landing page at `https://soham-0047.github.io/traceflow/` and the demo at `/traceflow/demo/` on the next push. No other setup.
+2. **Soham:** create the Atlassian dev site, run `forge register` in `app/`, put the app id in `app/manifest.yml` (replacing `REPLACE_AFTER_FORGE_REGISTER`), and add the `FORGE_EMAIL` / `FORGE_API_TOKEN` secrets. Everything Forge-side is scaffolded and unit-tested; `app/README.md` has the steps.
+3. **Run spike S1** (`docs/SPIKES.md`), then fix `app/src/backend/graph.ts` and `packages/core/src/normalize.ts` against real payloads.
+4. **Soham:** run the seeder against the dev site (`npm run seed -w @traceflow/seeder`, dry-run by default, `--apply` for real; needs the env vars in `tools/seeder/src/cli.ts`).
+5. Screen-reader pass over the Workbench (NVDA or VoiceOver); the keyboard pass is done.
+6. Rovo agent (TF-04) once S1 passes: `rovo:agent` / `rovo:action` modules calling the same resolver.
 
 ## Workstreams
 
@@ -58,7 +59,7 @@ Next actions, highest first:
 - [ ] Validate normalizers against live Jira and Confluence payloads (S1)
 - [ ] Map Teamwork Graph results into `OrgGraph` (S2)
 - [ ] Map Bitbucket pull requests into `OrgGraph` (S4)
-- [ ] Overview aggregates (rank epics, organization health)
+- [x] Overview aggregates (rank epics, organization health)
 - [ ] Document the `OrgGraph` schema in `PRODUCTS.md` once S1 to S4 settle it
 
 ### [T1] TF-03 Workbench and public demo (packages/ui, demo)
@@ -67,21 +68,21 @@ Next actions, highest first:
 - [x] Epics view: lane diagram with linked-record highlighting and gaps
 - [x] Decisions view: linked work, people and roles, findings
 - [x] Loading, empty and error states, with `?demo=` switches
-- [x] 12 UI tests (routing, ledger totals, evidence, the four states) and 4 demo-adapter tests
+- [x] 15 UI tests (routing, overview, ledger totals, evidence, the four states) and 4 demo-adapter tests
 - [x] Hallmark static lint at 0 FAIL, 0 WARN
-- [ ] Visual review in a real browser at desktop and phone widths
-- [ ] Hallmark render-tier lint (needs a headless browser)
-- [ ] Keyboard and screen-reader pass
-- [ ] Netlify site connected with a public URL
+- [x] Visual review in a real browser at desktop and phone widths
+- [x] Hallmark render-tier lint (headless browser, 0 FAIL 0 WARN; 3 reflexes waived and 2 finish answers on the record in the CSS stamp)
+- [ ] Keyboard and screen-reader pass (keyboard order, focus visibility and labels done; a screen-reader pass is still owed)
+- [ ] Netlify site connected with a public URL (GitHub Pages is the canonical public URL meanwhile; see CI/CD)
 - [x] Extract the UI into `packages/ui` (`Workbench`) so the Forge Custom UI can host it
 
 ### [T1] TF-01 Forge app (app)
-- [ ] App registered with `forge create` (needs Soham)
+- [ ] App registered with `forge register` (needs Soham; `app/README.md` has the steps)
 - [ ] S1: Jira and Confluence data in one resolver
-- [ ] Resolvers returning `OrgGraph` through the adapter interface
-- [ ] Custom UI wired to the shared components
-- [ ] KVS caching with short TTLs, usage within free allowances
-- [ ] Minimal manifest scopes
+- [x] Resolvers returning `OrgGraph` through the adapter interface (code + mocked tests; UNVERIFIED against the Forge runtime)
+- [x] Custom UI wired to the shared components (`app/src/frontend`, builds with vite; UNVERIFIED inside Forge)
+- [x] KVS caching with short TTLs, usage within free allowances (cache logic unit-tested; usage unverified until deploy)
+- [ ] Minimal manifest scopes (drafted in `app/manifest.yml`; confirm after first deploy)
 - [ ] First successful `forge deploy` from GitHub Actions
 
 ### [T1] TF-04 Agent (Rovo) and Teamwork Graph
@@ -96,8 +97,10 @@ Next actions, highest first:
 - [x] Manual Forge deploy workflow (untested)
 - [x] Netlify build config
 - [x] Hallmark design lint and progress-table check wired into CI
+- [x] GitHub Pages workflow (`pages.yml`: landing page at `/`, demo at `/demo/`, no secrets)
+- [ ] GitHub Pages enabled in repo settings (Soham: Settings → Pages → Source: GitHub Actions)
 - [ ] GitHub secrets `FORGE_EMAIL` and `FORGE_API_TOKEN` set
-- [ ] Netlify connected to the repo
+- [ ] Netlify connected to the repo (optional second URL)
 
 ### [T1] Submission
 - [ ] Marketplace listing or review ticket
@@ -106,14 +109,14 @@ Next actions, highest first:
 - [ ] Final README with install steps
 
 ### [T1] TF-05 Seeder and demo kit (tools/seeder)
-- [ ] Idempotent seed script for a dev site: epics, pages, remote links, decisions (needs an API token from Soham)
-- [ ] Mapping of the fictional people onto the real dev-site accounts
+- [x] Idempotent seed script for a dev site: epics, pages, remote links, decisions (planner unit-tested on fixtures; REST apply is UNVERIFIED until it runs against a real site)
+- [x] Mapping of the fictional people onto the real dev-site accounts (`SEED_MAP` env; unmapped people stay unassigned)
 - [x] Demo script and shot list (`docs/demo-script.md`)
 
 ### [T1] TF-08 Site and docs (site)
-- [ ] Choose the static stack and lock a page variant of the design system in `DESIGN.md`
-- [ ] Pitch, how it works, install steps, judge guide, honest-wording notes
-- [ ] Public URL linked from the README and Devpost
+- [x] Choose the static stack and lock a page variant of the design system in `DESIGN.md` (plain HTML + CSS, Hallmark page flow, render tier clean)
+- [ ] Pitch, how it works, install steps, judge guide, honest-wording notes (pitch, how it works, evidence and honest wording are on the page; install steps and the judge guide wait for a deployed app and the video)
+- [ ] Public URL linked from the README and Devpost (Pages URL is in the README; it goes live once Pages is enabled)
 
 ### [T2] TF-06 MCP server (packages/mcp)
 - [ ] Server with `assess_person_risk`, `trace_epic`, `trace_decision`, `list_people_by_risk` on fixtures
@@ -144,9 +147,9 @@ Next actions, highest first:
 - [ ] On-demand Rovo skill that offers to create and link a Jira issue
 
 ## Verified vs unverified
-Verified (run in the build sandbox, session 2): core tests (29) and demo tests (12) pass; typecheck passes; `vite build` succeeds; Hallmark static lint 0 FAIL, 0 WARN; CI passed on the first push.
+Verified (run in the build sandbox, session 3): 69 tests (38 core, 15 UI, 4 demo, 7 app, 5 seeder), typecheck and build across all workspaces, the Forge Custom UI frontend builds with vite, Hallmark static lint 0 FAIL 0 WARN (app scope) and 0 FAIL 0 REFLEX 0 WARN (page scope), the Hallmark **render tier** run with a headless browser at 320 to 1920px over both the site and the four demo views (0 FAIL 0 WARN; three reflexes waived and two finish answers on the record in `packages/ui/src/styles/app.css`), a visual review of all views at 1280 and 390 with screenshots (overview, people, epics, decisions, the four states, the landing page), a keyboard pass (tab order, focus visibility, skip link), contrast of the muted token on paper at 14.2:1, and no console errors or horizontal overflow on any checked page.
 
-Unverified: everything that touches Atlassian (Forge deploy, REST payload shapes, Teamwork Graph, Rovo); `forge-deploy.yml`; how the demo actually renders (no browser in the sandbox, so no screenshots and no Hallmark render tier); web fonts loading; Netlify deploy.
+Unverified: everything that touches Atlassian (Forge runtime behaviour, manifest validity, REST payload shapes, KVS call shapes, Rovo, the seeder's REST calls against a real site); the GitHub Pages deployment end-to-end (the workflow is ready; Pages must be enabled in repo settings); Netlify.
 
 ## Decision log
 | ID | Decision | Notes |
@@ -167,17 +170,25 @@ Unverified: everything that touches Atlassian (Forge deploy, REST payload shapes
 | D14 | Work is tiered: T1 ships by Dec 21, T2 only if it helps T1, T3 is briefs until after | Protects the deadline; see `PRODUCTS.md` |
 | D15 | Parallel agents claim a workstream, use `agent/<product>-<topic>` branches and pull requests, keep `main` green | Single-agent pushes to `main` happened in sessions 1 and 2 |
 | D16 | UI lives in `packages/ui` as one `Workbench` component; `demo/` is a thin host | Lets the Forge Custom UI reuse it unchanged |
+| D17 | GitHub Pages (via `pages.yml`, no secrets) is the canonical public URL: landing page at `/`, demo at `/demo/`; Netlify stays an optional second URL | $0, zero external accounts, deploys on push; enabled once in repo settings. Render and Vercel stay skipped (D4) |
+| D18 | Overview is the default landing view: top risks, epics by gaps, record counts, each linking into its investigation | Homepage is an investigation dashboard (PLAN §2); `buildOverview` in packages/core |
+| D19 | The ledger keeps its five columns on phones and scrolls sideways with a swipe hint instead of restacking | Answered F25 on the record: restacking hides the records × weight = points arithmetic |
+| D20 | The Forge app ships as a scaffold with a placeholder app id until `forge register`; `forge-deploy.yml` refuses to run with the placeholder in place | `app/README.md` holds the one-time steps |
+| D21 | The seeder seeds the sample story itself (fixtures are the single source); API pages are authored by the token owner, so sole-contributor findings are expected on seeded sites; decisions follow the `Decision: ` title convention read by `deriveDecisions` | `tools/seeder`; honest limits documented in its source |
+| D22 | Lane connectors fan out: per-edge anchors on each card edge and per-edge control points, replacing the single shared midpoint | Fixes the bundled-connector finding from the session 3 visual review |
 
 ## Blockers needing Soham
+- Enable GitHub Pages: repo Settings → Pages → Build and deployment → Source: **GitHub Actions** (one flip; `pages.yml` does the rest).
 - Confirm that "any tech stack" does not also relax the $0 budget (assumed it does not).
-- Free Atlassian development site, `forge create`, and the `app.id` from `manifest.yml`.
+- Free Atlassian development site, `forge register`, and the real app id in `app/manifest.yml`.
 - GitHub secrets `FORGE_EMAIL` and `FORGE_API_TOKEN`.
-- Netlify: connect the repo from Netlify's UI.
+- Netlify (optional now that Pages is the canonical URL): connect the repo from Netlify's UI.
 - Devpost registration, and confirm the exact 2026 deadline time.
-- **Revoke the GitHub token that was pasted into the chat in session 1** and create a fresh short-lived one for the next push session.
+- **Revoke the GitHub token that was pasted into the chat once this session is pushed** and create a fresh short-lived one for the next push session.
 - If Teamwork Graph returns an authorization error, ask Atlassian support to allowlist the app ID (see S2).
 
 ## Session log (newest first)
+- **2026-11-07, session 3, latest.** Overview end to end: `buildOverview` in core (ranked epics, org health counts, coverage) with 6 tests, and a new Overview view as the default landing page (15 UI tests total). Forge app scaffolded in `app/` (manifest with placeholder id, `getGraph` resolver with a unit-tested KVS TTL cache, Custom UI hosting the Workbench, forge adapter with mocked `@forge/bridge` tests, 7 app tests). Seeder in `tools/seeder` (sample story from the fixtures, idempotent planner with 5 tests, dry-run CLI). Landing page in `site/` (Hallmark page flow, Coral page variant locked in `DESIGN.md`, clean on static and render tiers). Hosting: `pages.yml` publishes site + demo to GitHub Pages (D17); `forge-deploy.yml` now refuses the placeholder app id. Real-browser review of every view at 1280/390 with the four states: fixed the double-spaced overview rhythm, fanned the lane connectors out from per-edge anchors (D22), made the ledger scroll with a swipe hint on phones (D19), tightened mobile tables. Render tier run for the first time (site and demo) and brought to 0 FAIL 0 WARN. All checks green: 69 tests, typecheck, build, both lint tiers.
 - **2026-11-06, session 2, latest.** Extracted the UI into `packages/ui` (`Workbench`, props for source note and footer), made `demo/` a thin host with its own adapter tests, retargeted design lint, wrote `docs/demo-script.md` and `packages/ui/README.md`. All checks green: 29 core, 12 UI and 4 demo tests, build, lint.
 - **2026-11-06, session 2, later.** Wrote `PRODUCTS.md`: twelve products in three tiers, the shared contracts, stack defaults, prize mapping and rules for parallel agents. Progress table now reports Tier 1 separately from all tiers. No product code written; T2 and T3 are briefs only.
 - **2026-11-06, session 2.** Vendored Hallmark (MIT) and dealt the Coral theme at app scope. Built `demo/` (People ledger, Epics lane diagram, Decisions, evidence card, four states with `?demo=` switches, 12 UI tests, Hallmark lint at 0 FAIL and 0 WARN). Added `DESIGN.md`, `AGENTS.md`, `CLAUDE.md`, `docs/SPIKES.md`, this index with a generated progress table, the Netlify config, and CI steps for design lint and the progress check. Not done: anything needing Atlassian access, a real browser (no screenshots or render-tier lint), or Netlify.

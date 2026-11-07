@@ -1,0 +1,52 @@
+name: Pages (site + demo)
+
+# Publishes the landing page (site/) and the sample-data demo (demo/) to GitHub
+# Pages as one site: the page at / and the demo under /demo/.
+# $0: no external accounts and no secrets; the workflow uses the automatically
+# provided GITHUB_TOKEN. Pages must be set to "GitHub Actions" as the build
+# source (repo Settings -> Pages), which the API call in the session log did.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @traceflow/demo
+      - name: Assemble the Pages artifact (site at /, demo at /demo/)
+        run: |
+          mkdir -p pages-out/demo
+          cp -r site/. pages-out/
+          cp -r demo/dist/. pages-out/demo/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages-out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

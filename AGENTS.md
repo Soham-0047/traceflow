@@ -15,12 +15,13 @@ Several agents may work here at once. Claim a workstream in `docs/PROGRESS.md`, 
 ## Layout
 | Path | What |
 | --- | --- |
-| `packages/core` | Pure TypeScript engine: `OrgGraph` types, risk scoring, epic lineage, decision tracing, Jira/Confluence normalizers, sample fixtures. No Atlassian dependency. |
+| `packages/core` | Pure TypeScript engine: `OrgGraph` types, risk scoring, epic lineage, overview aggregates, decision tracing, Jira/Confluence normalizers, sample fixtures. No Atlassian dependency. |
 | `packages/ui` | The shared investigation UI (`<Workbench adapter={...} />`) with the Hallmark styles and the UI tests. Consumed from source via an alias. |
-| `demo` | Thin Vite host that serves `@traceflow/ui` on sample data (deployed to Netlify). |
-| `app` | Forge app (TF-01, TF-04). Not created yet; needs `forge create` by Soham (see `app/README.md`). |
-| `tools`, `site`, `packages/*`, `apps/*` | Future products from `PRODUCTS.md` (seeder, site, MCP, check, cloud, connectors). Create the folder when you start the product. |
-| `.github/workflows` | `ci.yml` (verify on every push), `forge-deploy.yml` (manual, untested). |
+| `demo` | Thin Vite host that serves `@traceflow/ui` on sample data (published to GitHub Pages at `/demo/`). |
+| `app` | Forge app scaffold (TF-01, TF-04): manifest with a **placeholder app id**, `getGraph` resolver, unit-tested KVS TTL cache, Custom UI hosting the Workbench. Needs `forge register` by Soham (see `app/README.md`). |
+| `tools/seeder` | TF-05: idempotent dev-site seeder. Pure planner (unit-tested) + UNVERIFIED REST client; dry-run by default. |
+| `site` | TF-08: the public landing page (static HTML + CSS, Hallmark page flow, published to Pages at `/`). |
+| `.github/workflows` | `ci.yml` (verify on every push), `pages.yml` (site + demo to GitHub Pages), `forge-deploy.yml` (manual; refuses the placeholder app id). |
 
 ## Commands (Node 20+)
 ```
@@ -44,5 +45,5 @@ npm run progress:write  # refresh the table in docs/PROGRESS.md after ticking bo
 `npm run verify` passes, `docs/PROGRESS.md` boxes and session log are updated (`npm run progress:write`), and anything newly verified or newly assumed is recorded there.
 
 ## Limits to know
-- The agent sandbox that built this could reach GitHub and npm but **not** Atlassian: no `forge deploy`, no calls to a Jira site. Real-site verification goes through GitHub Actions logs and screenshots from Soham.
-- No headless browser was available, so the visual render of the demo and Hallmark's render tier have not been run.
+- The agent sandbox that built sessions 1 and 2 could reach GitHub and npm but **not** Atlassian: no `forge deploy`, no calls to a Jira site. Real-site verification goes through GitHub Actions logs and screenshots from Soham. (Session 3 ran a headless browser locally, so visual review and the Hallmark render tier are done; a screen-reader pass is still owed.)
+- Anything not run against a real Atlassian site (Forge runtime, REST payload shapes, Teamwork Graph, Rovo, the seeder's REST calls) is marked UNVERIFIED in code comments and in `docs/PROGRESS.md`.

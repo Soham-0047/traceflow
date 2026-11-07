@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react';
 
-export type View = 'people' | 'epics' | 'decisions';
+export type View = 'overview' | 'people' | 'epics' | 'decisions';
 
 export interface Route {
   view: View;
@@ -9,7 +9,7 @@ export interface Route {
   finding?: string;
 }
 
-const VIEWS: View[] = ['people', 'epics', 'decisions'];
+const VIEWS: View[] = ['overview', 'people', 'epics', 'decisions'];
 
 export function parseHash(hash: string): Route {
   const parts = hash
@@ -17,7 +17,7 @@ export function parseHash(hash: string): Route {
     .split('/')
     .filter(Boolean)
     .map((p) => decodeURIComponent(p));
-  const view = VIEWS.find((v) => v === parts[0]) ?? 'people';
+  const view = VIEWS.find((v) => v === parts[0]) ?? 'overview';
   const finding = parts[2] === 'finding' ? parts[3] : undefined;
   return { view, id: parts[1], finding };
 }

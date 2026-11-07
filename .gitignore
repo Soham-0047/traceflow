@@ -6,3 +6,8 @@ dist/
 .DS_Store
 .forge/
 coverage/
+# Forge Custom UI build output (app/src/frontend is built by the Forge CLI)
+app/src/frontend/build/
+# Hallmark render-tier screenshots (local artifacts)
+.hallmark/shots/
+site/.hallmark/

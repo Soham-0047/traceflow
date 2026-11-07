@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildOrgGraph, pageFromConfluence, pageIdFromUrl, workItemFromJira } from '../src/index.js';
+import {
+  buildOrgGraph,
+  deriveDecisions,
+  pageFromConfluence,
+  pageIdFromUrl,
+  workItemFromJira,
+} from '../src/index.js';
 import type { JiraIssueRaw } from '../src/index.js';
 
 const issue = (over: Partial<JiraIssueRaw['fields']> & { key?: string } = {}): JiraIssueRaw => ({
@@ -75,5 +81,42 @@ describe('buildOrgGraph', () => {
     expect(byId['PAY-3']?.epicId).toBeUndefined();
     expect(byId['PAY-1']?.linkedPageIds).toEqual(['111']);
     expect(graph.pullRequests).toEqual([]);
+  });
+});
+
+describe('deriveDecisions', () => {
+  const pages = [
+    pageFromConfluence({ id: '9001', title: 'Decision: queue vs cron' }, ['acc-1', 'acc-2']),
+    pageFromConfluence({ id: '9002', title: 'Decision: token format' }, ['acc-2']),
+    pageFromConfluence({ id: '9003', title: 'Not a decision page' }, ['acc-1']),
+    pageFromConfluence({ id: '9004', title: 'Decision: no contributors yet' }, []),
+  ];
+  const work = [
+    workItemFromJira(issue({ key: 'PAY-12' }), {
+      remoteLinks: [{ object: { url: 'https://x.atlassian.net/wiki/spaces/ENG/pages/9001/x' } }],
+    }),
+  ];
+
+  it('treats "Decision: " pages as decision records with the first contributor as owner', () => {
+    const decisions = deriveDecisions(pages, work);
+    expect(decisions.map((d) => d.ref.id)).toEqual(['9001', '9002']);
+    expect(decisions[0]).toMatchObject({
+      ownerId: 'acc-1',
+      status: 'proposed',
+      pendingApproverIds: [],
+      linkedWorkItemIds: ['PAY-12'],
+    });
+  });
+
+  it('cannot detect approvals, so decisions stay proposed without pending approvers', () => {
+    const decisions = deriveDecisions(pages, work);
+    for (const d of decisions) {
+      expect(d.status).toBe('proposed');
+      expect(d.pendingApproverIds).toEqual([]);
+    }
+  });
+
+  it('returns nothing for an empty page set', () => {
+    expect(deriveDecisions([], work)).toEqual([]);
   });
 });

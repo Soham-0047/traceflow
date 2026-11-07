@@ -39,7 +39,7 @@ function DecisionsReady({ graph }: { graph: OrgGraph }) {
 
   return (
     <div className="workspace">
-      <nav className="rail" aria-label="Decisions">
+      <section className="rail" aria-label="Decisions">
         <h2 className="rail-title">Decisions</h2>
         <table className="rank">
           <thead>
@@ -64,7 +64,7 @@ function DecisionsReady({ graph }: { graph: OrgGraph }) {
             ))}
           </tbody>
         </table>
-      </nav>
+      </section>
 
       <section className="main" aria-labelledby="decision-heading">
         {!report ? (

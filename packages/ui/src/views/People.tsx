@@ -40,7 +40,7 @@ function PeopleReady({ graph }: { graph: OrgGraph }) {
 
   return (
     <div className="workspace">
-      <nav className="rail" aria-label="People ranked by knowledge risk">
+      <section className="rail" aria-label="People ranked by knowledge risk">
         <h2 className="rail-title">People</h2>
         <table className="rank">
           <thead>
@@ -65,7 +65,7 @@ function PeopleReady({ graph }: { graph: OrgGraph }) {
             ))}
           </tbody>
         </table>
-      </nav>
+      </section>
 
       <section className="main" aria-labelledby="person-heading">
         {!current ? (

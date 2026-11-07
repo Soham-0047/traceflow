@@ -25,14 +25,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check that the Forge app exists
+      - name: Check that the Forge app exists and is registered
         id: check
         run: |
-          if [ -f app/manifest.yml ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
+          if [ ! -f app/manifest.yml ]; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "No app/manifest.yml yet - nothing to deploy."
+          elif grep -q "REPLACE_AFTER_FORGE_REGISTER" app/manifest.yml; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "app/manifest.yml still has the placeholder app id."
+            echo "Run 'forge register' and put the real app id in app/manifest.yml first (see app/README.md)."
+          else
+            echo "exists=true" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/setup-node@v4

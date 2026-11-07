@@ -44,7 +44,9 @@ export function Ledger({
         })}
       </ol>
 
-      <table className="ledger">
+      <div className="table-scroll">
+        <p className="scroll-hint">Swipe the table sideways to see every column.</p>
+        <table className="ledger">
         <caption className="visually-hidden">
           Handover ledger for {report.personName}: findings, records counted, weight and points
         </caption>
@@ -89,7 +91,8 @@ export function Ledger({
             <td className="num total">{report.score}</td>
           </tr>
         </tfoot>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }

@@ -4,7 +4,9 @@
 
 Built for Atlassian **Codegeist 2026** on Forge. First product: **Knowledge Risk & Decision Lineage**.
 
-> Status: core engine and a sample-data demo are built and tested. The Forge app is the next step. See [`docs/PROGRESS.md`](docs/PROGRESS.md) for exactly where things stand.
+> Status: engine, shared Workbench UI, Forge app scaffold, seeder and landing page are built and tested (69 tests, Hallmark lint clean on both tiers). The Forge app waits on a dev site; see [`docs/PROGRESS.md`](docs/PROGRESS.md) for exactly where things stand.
+
+**Try it:** the public demo runs on the same interface with sample data at `https://soham-0047.github.io/traceflow/demo/` (live once GitHub Pages is enabled: Settings → Pages → Source: GitHub Actions), with the landing page at `https://soham-0047.github.io/traceflow/`.
 
 ## What it will do
 
@@ -37,18 +39,21 @@ TraceFlow provides *audit-ready evidence* and *decision traceability*. It does n
 | `docs/PLAN.md` | Direction, decisions, architecture, timeline, submission checklist |
 | `docs/SPIKES.md` | The four Forge validation spikes |
 | `DESIGN.md` | Locked design system and product rules ([Hallmark](https://github.com/Nutlope/hallmark) is vendored in `.claude/skills/hallmark`) |
-| `packages/core` | Pure TypeScript engine: risk, lineage, decisions, normalizers (tested, no Atlassian dependency) |
-| `packages/ui` | The shared investigation UI: people ledger, epic lineage, decisions, evidence card |
-| `demo` | Thin host that serves the UI on sample data |
-| `app/` | Forge app (created after `forge create`) |
-| `.github/workflows` | CI, plus a manual Forge deploy workflow |
+| `packages/core` | Pure TypeScript engine: risk, lineage, overview, decisions, normalizers (tested, no Atlassian dependency) |
+| `packages/ui` | The shared investigation UI: overview, people ledger, epic lineage, decisions, evidence card |
+| `demo` | Thin host that serves the UI on sample data (published to GitHub Pages at `/demo/`) |
+| `app/` | Forge app scaffold: manifest (placeholder app id), `getGraph` resolver with KVS cache, Custom UI hosting the Workbench |
+| `tools/seeder/` | Idempotent dev-site seeder for the demo story (dry-run by default) |
+| `site/` | The public landing page (published to GitHub Pages at `/`) |
+| `.github/workflows` | CI (verify), Pages (site + demo), and a manual Forge deploy workflow |
 
 ## Develop
 
 ```bash
 npm install
-npm run verify                 # typecheck, tests, build, design lint
+npm run verify                 # typecheck, tests, build, design lint (app + page)
 npm run dev -w @traceflow/demo # the demo on http://localhost:5173
+npm run seed -w @traceflow/seeder  # seed a dev site (dry-run by default; --apply to create)
 ```
 
-Requires Node 20+. The demo shows sample data from a fictional team; add `?demo=loading`, `?demo=empty` or `?demo=error` to see the other states.
+Requires Node 20+. The demo opens on the organization overview and shows sample data from a fictional team; add `?demo=loading`, `?demo=empty` or `?demo=error` to see the other states.

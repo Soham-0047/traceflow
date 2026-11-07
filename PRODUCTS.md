@@ -31,12 +31,12 @@ The platform is one shared engine, a few surfaces that show it, and some satelli
 
 | ID | Product | Tier | Status | Stack | Lives in |
 | --- | --- | --- | --- | --- | --- |
-| TF-01 | TraceFlow for Atlassian (Forge app) | T1 | Not started, blocked on `forge create` | Forge, Custom UI (React, TS) | `app/` |
-| TF-02 | TraceFlow Engine | T1 | v1 done, 29 tests | TypeScript, no runtime deps | `packages/core` |
-| TF-03 | TraceFlow Workbench (shared UI and public demo) | T1 | Built and extracted; needs a real-browser review | React 18, TS, Vite | `packages/ui`, `demo/` |
+| TF-01 | TraceFlow for Atlassian (Forge app) | T1 | Scaffolded and unit-tested; UNVERIFIED until deployed (needs `forge register`) | Forge, Custom UI (React, TS) | `app/` |
+| TF-02 | TraceFlow Engine | T1 | v1.1: overview aggregates added; 38 tests | TypeScript, no runtime deps | `packages/core` |
+| TF-03 | TraceFlow Workbench (shared UI and public demo) | T1 | Reviewed in a real browser at two widths; render-tier lint clean; keyboard pass done | React 18, TS, Vite | `packages/ui`, `demo/` |
 | TF-04 | TraceFlow Agent (Rovo agent, actions, optional MCP tools) | T1 | Not started | Forge `rovo:*` modules | `app/` |
-| TF-05 | TraceFlow Seeder (demo data and video kit) | T1 | Not started | Node, TS, Atlassian REST | `tools/seeder` |
-| TF-08 | TraceFlow Site and docs | T1 | Not started | Static site | `site/` |
+| TF-05 | TraceFlow Seeder (demo data and video kit) | T1 | Planner written and unit-tested; REST apply UNVERIFIED until a real run | Node, TS, Atlassian REST | `tools/seeder` |
+| TF-08 | TraceFlow Site and docs | T1 | Landing page built, lint clean on both tiers; public URL waits on Pages | Static site | `site/` |
 | TF-06 | TraceFlow MCP (standalone server for any AI agent) | T2 | Not started | TS, MCP SDK | `packages/mcp` |
 | TF-07 | TraceFlow Check (provenance gate for pull requests) | T2 | Not started | Node CLI, GitHub Action, Bitbucket Pipe | `packages/check` |
 | TF-09 | TraceFlow Cloud (standalone web app) | T3 | Not started | TS full stack | `apps/cloud` |
@@ -87,14 +87,14 @@ Each section is written so one agent can start from it alone.
 - **Depends on:** TF-02, TF-03, and spike S1 (`docs/SPIKES.md`).
 - **Build:** Forge resolvers call Jira and Confluence (`requestJira`, `requestConfluence`), build an `OrgGraph` through the normalizers, run the engine, cache in KVS with short TTLs. The Custom UI reuses TF-03 components. Deploy from GitHub Actions.
 - **Done when:** installed on a dev site; People and Epic investigations work on real data with the evidence card; usage stays within Forge free allowances; App ID ready for Devpost.
-- **First tasks:** Soham runs `forge create` and shares `app.id`; run S1; resolver returning an `OrgGraph`; wire the UI through a Forge `DataAdapter`.
-- **Risks:** cross-product access, Teamwork Graph allowlisting, external fonts blocked inside Forge.
+- **First tasks:** Soham runs `forge register`, puts the app id in `app/manifest.yml` and sets the two GitHub secrets; deploy; run S1 and fix `app/src/backend/graph.ts` against real payloads. The resolver, KVS cache, Custom UI and forge adapter are already scaffolded and unit-tested.
+- **Risks:** cross-product access, Teamwork Graph allowlisting, external fonts blocked inside Forge (egress for the font CDNs is declared in the manifest).
 
 ### TF-02 TraceFlow Engine (`@traceflow/core`)
-- **What:** the pure library behind everything: risk scoring with visible weights, epic lineage, decision tracing, Jira and Confluence normalizers, rule text, sample fixtures.
+- **What:** the pure library behind everything: risk scoring with visible weights, epic lineage, overview aggregates, decision tracing, Jira and Confluence normalizers, rule text, sample fixtures.
 - **Contract:** no I/O, deterministic, no runtime dependencies, ESM. Input is an `OrgGraph`, output is a report with evidence and caveats.
 - **Done when:** normalizers are validated against real payloads (S1), Teamwork Graph and Bitbucket mappings exist (S2, S4), the schema is documented here.
-- **Next:** overview aggregates (rank epics, organization health), then the T3 impact module.
+- **Next:** validate against real payloads (S1), then the T3 impact module.
 
 ### TF-03 TraceFlow Workbench (shared UI and public demo)
 - **What:** the investigation UI: people ranked by risk, handover ledger (records × weight = points), lane-diagram lineage, decisions, evidence card, four states everywhere. The sample-data build is the public demo.

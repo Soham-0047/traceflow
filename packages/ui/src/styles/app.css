@@ -1,8 +1,12 @@
 /* Hallmark · shape: app screen · genre: modern-minimal · theme: Coral (deal 1/3, seed evidence-first-knowledge-risk-investigation-dashboard-f147·8780bd5c·2026-11-01·r0)
- * nav: top bar with three destinations · signature: the handover ledger, a table whose records, weights and points add up in view · states: loading, empty, error, full
+ * nav: top bar with four destinations · signature: the handover ledger, a table whose records, weights and points add up in view · states: loading, empty, error, full
  * axes: light/grotesk-sans/warm · posture: restrained · contrast: pass · v2.0.0 */
 /* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V3 · weakest: V, the shell follows the app-screen standard on purpose; variety lives in the ledger and the lane diagram */
 /* Hallmark · answered F4 · the selected segment of the ledger bar takes the accent fill because it is a chart mark showing the current finding, not a second primary button */
+/* Hallmark · answered F25 · the ledger keeps its five columns and scrolls sideways with a swipe hint on a phone, because restacking the rows would hide the records, weight and points arithmetic the ledger exists to show */
+/* Hallmark · waive 39b · row buttons stand 66px, finding rows 65px, lane nodes up to 91px · they are content-bearing app rows with two or three text lines each and a 44px hit target, not marketing controls */
+/* Hallmark · waive 49b · rail links wrap to two lines at narrow widths · a rail link is a record title from the site, and a record title is data that must not be shortened or cut to fit a column */
+/* Hallmark · waive 80 · div.lanes renders as a drawn illustration · it is the labelled HTML and SVG lane diagram of decision D9, with named lanes and record nodes */
 @import url("./tokens.css");
 @import url("./base.css");
 
@@ -47,11 +51,19 @@ main:focus-visible { outline: none; }
 
 /* Tables */
 table { width: 100%; border-collapse: collapse; }
+.table-scroll { overflow-x: auto; }
+.scroll-hint { display: none; color: var(--color-muted); font-size: var(--text-sm); margin-bottom: var(--space-2xs); }
+@media (max-width: 40rem) { .scroll-hint { display: block; } }
 th { text-align: left; font-weight: 500; font-size: var(--text-sm); color: var(--color-muted); padding: var(--space-xs) var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
 td { padding: var(--space-xs) var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule); vertical-align: top; }
 .num { text-align: right; font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
 th.num { font-family: var(--font-body); }
 .figure { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
+@media (max-width: 40rem) {
+  .plain th, .plain td { padding-inline: var(--space-2xs); }
+  .plain .num { white-space: nowrap; }
+  .plain td:first-child { white-space: normal; }
+}
 
 .rank td, .rank th { padding-inline: var(--space-xs); }
 .rank a { display: block; min-height: 44px; padding-block: var(--space-xs); text-decoration: none; }
@@ -63,6 +75,10 @@ th.num { font-family: var(--font-body); }
 
 /* The handover ledger */
 .ledger-wrap { display: grid; gap: var(--space-md); }
+/* The ledger keeps its five columns; finding titles stay on one line and the
+   table scrolls sideways where the column is narrower than the titles. */
+.ledger { min-width: 34rem; }
+.row-button { white-space: nowrap; }
 .ledger-bar { display: flex; gap: var(--space-2xs); list-style: none; margin: 0; padding: 0; }
 .ledger-bar li { min-width: 6px; display: flex; }
 .ledger-bar button { flex: 1; border: 0; padding: 0; height: 28px; background: var(--color-rule-2); background-clip: content-box; border-block: 8px solid transparent; border-radius: var(--radius-pill); cursor: pointer; transition: background-color var(--dur-micro) var(--ease-out); }
@@ -99,7 +115,7 @@ th.num { font-family: var(--font-body); }
 .record-id { font-size: var(--text-sm); }
 
 /* Lineage lanes */
-.lanes { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-xl); align-items: start; }
+.lanes { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-lg) var(--space-2xl); align-items: start; }
 .lane { display: grid; gap: var(--space-xs); align-content: start; position: relative; z-index: var(--z-base); }
 .lane-label { color: var(--color-muted); font-size: var(--text-sm); font-weight: 500; letter-spacing: 0; line-height: 1.2; margin-bottom: var(--space-2xs); }
 .lane-none { color: var(--color-muted); font-size: var(--text-sm); }
@@ -126,6 +142,11 @@ th.num { font-family: var(--font-body); }
 .finding-meta { color: var(--color-muted); font-size: var(--text-sm); }
 
 .plain td:first-child { white-space: nowrap; }
+
+/* Overview */
+.plain a { display: inline-flex; align-items: center; min-height: 44px; }
+.plain .key { color: var(--color-muted); margin-right: var(--space-2xs); }
+.table-foot { margin-top: var(--space-sm); }
 
 /* Disclosure */
 .caveats { margin-top: var(--space-lg); color: var(--color-muted); }

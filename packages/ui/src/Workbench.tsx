@@ -3,11 +3,13 @@ import type { DataAdapter } from '@traceflow/core';
 import { DataProvider } from './data';
 import { useRoute, hrefFor } from './router';
 import type { View } from './router';
+import { OverviewView } from './views/Overview';
 import { DecisionsView } from './views/Decisions';
 import { EpicsView } from './views/Epics';
 import { PeopleView } from './views/People';
 
 const NAV: { view: View; label: string }[] = [
+  { view: 'overview', label: 'Overview' },
   { view: 'people', label: 'People' },
   { view: 'epics', label: 'Epics' },
   { view: 'decisions', label: 'Decisions' },
@@ -29,7 +31,7 @@ function Shell({ sourceNote, footerNote }: ShellProps) {
       </a>
       <header className="topbar">
         <div className="topbar-inner">
-          <a className="wordmark" href={hrefFor({ view: 'people' })}>
+          <a className="wordmark" href={hrefFor({ view: 'overview' })}>
             TraceFlow
           </a>
           <nav aria-label="Primary">
@@ -50,6 +52,7 @@ function Shell({ sourceNote, footerNote }: ShellProps) {
         </div>
       </header>
       <main id="main" tabIndex={-1}>
+        {route.view === 'overview' ? <OverviewView /> : null}
         {route.view === 'people' ? <PeopleView /> : null}
         {route.view === 'epics' ? <EpicsView /> : null}
         {route.view === 'decisions' ? <DecisionsView /> : null}

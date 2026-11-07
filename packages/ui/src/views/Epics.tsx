@@ -81,7 +81,7 @@ function EpicsReady({ graph }: { graph: OrgGraph }) {
 
   return (
     <div className="workspace">
-      <nav className="rail" aria-label="Epics">
+      <section className="rail" aria-label="Epics">
         <h2 className="rail-title">Epics</h2>
         <table className="rank">
           <thead>
@@ -106,7 +106,7 @@ function EpicsReady({ graph }: { graph: OrgGraph }) {
             ))}
           </tbody>
         </table>
-      </nav>
+      </section>
 
       <section className="main" aria-labelledby="epic-heading">
         {!report ? (

@@ -5,17 +5,20 @@
   "description": "TraceFlow: knowledge risk and decision lineage for Atlassian teams (Codegeist 2026).",
   "workspaces": [
     "packages/*",
-    "demo"
+    "demo",
+    "app",
+    "tools/*"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "lint:design": "node .claude/skills/hallmark/scripts/sloplint.mjs packages/ui/src demo/index.html demo/src --genre modern-minimal --scope app",
+    "lint:site": "node .claude/skills/hallmark/scripts/sloplint.mjs site --genre modern-minimal --scope page",
     "progress": "node scripts/progress.mjs",
     "progress:write": "node scripts/progress.mjs --write",
     "progress:check": "node scripts/progress.mjs --check",
-    "verify": "npm run typecheck && npm test && npm run build && npm run lint:design"
+    "verify": "npm run typecheck && npm test && npm run build && npm run lint:design && npm run lint:site"
   },
   "engines": {
     "node": ">=20"

@@ -1,0 +1,27 @@
+{
+  "name": "@traceflow/app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "TraceFlow Forge app: resolvers, KVS cache and the Custom UI host (TF-01). UNVERIFIED until deployed to a dev site.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@forge/api": "^8.4.0",
+    "@forge/kvs": "^2.1.1",
+    "@forge/resolver": "^2.0.2"
+  },
+  "devDependencies": {
+    "@forge/bridge": "^7.2.1",
+    "@testing-library/jest-dom": "^6.6.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

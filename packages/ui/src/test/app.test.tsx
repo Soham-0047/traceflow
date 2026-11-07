@@ -16,13 +16,49 @@ describe('router', () => {
   it('round-trips routes', () => {
     const route = { view: 'people' as const, id: 'alex', finding: 'open-work-1' };
     expect(parseHash(hrefFor(route))).toEqual(route);
-    expect(parseHash('')).toEqual({ view: 'people', id: undefined, finding: undefined });
+    expect(parseHash('')).toEqual({ view: 'overview', id: undefined, finding: undefined });
+  });
+});
+
+describe('Overview', () => {
+  it('is the landing view and shows top risks, epic ranking and record counts', async () => {
+    open('');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Organization overview' })).toBeInTheDocument();
+
+    const risks = screen.getByRole('table', { name: /highest knowledge-risk people/ });
+    expect(within(risks).getByRole('link', { name: 'Alex Rivera' })).toBeInTheDocument();
+    expect(within(risks).getByText('High risk')).toBeInTheDocument();
+
+    const epicTable = screen.getByRole('table', { name: /Epics ranked by the number of gaps/ });
+    const epicRows = within(epicTable).getAllByRole('row');
+    expect(epicRows[1]).toHaveTextContent('PAY-1');
+    expect(epicRows[1]).toHaveTextContent('4');
+    expect(epicRows[1]).toHaveTextContent('2');
+
+    const records = screen.getByRole('table', { name: /What is counted/ });
+    expect(within(records).getByText('Pages with a sole contributor')).toBeInTheDocument();
+    expect(within(records).getByText('8')).toBeInTheDocument();
+  });
+
+  it('links from the overview into a person investigation', async () => {
+    const user = userEvent.setup();
+    open('');
+    await screen.findByRole('heading', { level: 1, name: 'Organization overview' });
+    await user.click(screen.getByRole('link', { name: 'Alex Rivera' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alex Rivera' })).toBeInTheDocument();
+    expect(window.location.hash).toContain('#/people/alex');
+  });
+
+  it('shows an empty state when nothing is connected', async () => {
+    const empty: OrgGraph = { people: [], workItems: [], pages: [], pullRequests: [], decisions: [] };
+    open('', createStaticAdapter('empty', empty));
+    expect(await screen.findByRole('heading', { name: 'Nothing to investigate yet' })).toBeInTheDocument();
   });
 });
 
 describe('People', () => {
   it('opens on the highest-risk person with a ledger that adds up', async () => {
-    open('');
+    open('#/people');
     expect(await screen.findByRole('heading', { level: 1, name: 'Alex Rivera' })).toBeInTheDocument();
     expect(screen.getByText('High risk')).toBeInTheDocument();
     const table = screen.getByRole('table', { name: /Handover ledger for Alex Rivera/ });
@@ -32,7 +68,7 @@ describe('People', () => {
 
   it('starts with an empty evidence drawer and fills it from a ledger row', async () => {
     const user = userEvent.setup();
-    open('');
+    open('#/people');
     await screen.findByRole('heading', { level: 1, name: 'Alex Rivera' });
     expect(screen.getByText(/Select a finding to see why it was flagged/)).toBeInTheDocument();
 
@@ -110,12 +146,14 @@ describe('Regions have four states', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Boom.');
     fail = false;
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Alex Rivera' })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Organization overview' })).toBeInTheDocument(),
+    );
   });
 
   it('empty', async () => {
     const empty: OrgGraph = { people: [], workItems: [], pages: [], pullRequests: [], decisions: [] };
-    open('', createStaticAdapter('empty', empty));
+    open('#/people', createStaticAdapter('empty', empty));
     expect(await screen.findByRole('heading', { name: 'No people yet' })).toBeInTheDocument();
   });
 });

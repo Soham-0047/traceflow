@@ -1,0 +1,36 @@
+# TraceFlow Forge app (TF-01). UNVERIFIED: this manifest has not been deployed yet.
+#
+# One-time setup (see app/README.md):
+#   1. forge login
+#   2. forge register  -> it writes the real app id below
+#   3. replace REPLACE_AFTER_FORGE_REGISTER with that id
+#   4. forge deploy --non-interactive -e development
+appId: ari:cloud:ecosystem::app/REPLACE_AFTER_FORGE_REGISTER
+modules:
+  jira:globalPage:
+    - key: traceflow-workbench
+      resource: workbench-ui
+      resolver:
+        function: traceflow-resolver
+      title: TraceFlow
+  function:
+    - key: traceflow-resolver
+      handler: backend/index.handler
+resources:
+  # The Forge CLI runs `npm install && npm run build` in src/frontend and serves
+  # the build output (vite outDir is set to `build` in the frontend's vite config).
+  - key: workbench-ui
+    path: src/frontend/index.html
+permissions:
+  scopes:
+    - read:jira-work
+    - read:confluence-content.all
+    - storage:app
+egress:
+  # The Custom UI loads its web fonts from CDNs (DESIGN.md rule 10); Forge blocks
+  # undeclared egress. If fonts still fail inside Forge, the token stack falls back
+  # to system fonts on purpose.
+  permissions:
+    - "https://api.fontshare.com"
+    - "https://fonts.googleapis.com"
+    - "https://fonts.gstatic.com"

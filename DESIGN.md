@@ -49,3 +49,6 @@ These sit on top of Hallmark's floor and are the reasons the UI looks the way it
 - After touching UI: `npm run lint:design` must report **0 FAIL and 0 WARN** (or answered/waived on the record in the CSS stamp block). The render tier (`--render`) needs a headless browser; run it locally when one is available.
 - Keep the Hallmark stamp and critique line at the top of `packages/ui/src/styles/app.css` honest: re-score it when the design changes.
 - Never add a literal colour or font-family outside `tokens.css`; never `transition: all`; never an eyebrow or tracked-capitals label.
+
+## Page variant (site/, locked 2026-11-07)
+The public landing page (`site/index.html` + `site/styles.css`) is a **Long Document pitch page**, not an app screen. It keeps the Coral palette, faces, radii and restrained posture, and adds page-scope type tokens (`--text-hero` clamp, larger sections) declared in its own `:root` block — never inside components. The hero is headline, one sentence, two actions, all visible at 1280 x 800. The signature carried over from the app is the handover ledger, shown as a labelled sample-data figure. No metrics, testimonials or logos that the project has not earned. `npm run lint:site` (Hallmark, `--scope page`) must stay at **0 FAIL, 0 WARN**.

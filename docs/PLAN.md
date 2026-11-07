@@ -67,11 +67,12 @@ Principles: records are the source of truth; AI only explains and suggests; star
 
 | Platform | Role | Verdict |
 |---|---|---|
-| Atlassian Forge | All runtime and hosting | **Core.** Free monthly allowance per app (functions, KVS reads/writes). Rovo usage is billed separately; check the pricing page before submission |
-| GitHub + Actions | Repo, CI, `forge deploy` | **Core** |
-| Netlify | Public mock-data demo + judge landing page | **Use** (confirm free-tier terms if monetised later) |
+| Atlassian Forge | All runtime and hosting for the app itself | **Core.** Free monthly allowance per app (functions, KVS reads/writes). Rovo usage is billed separately; check the pricing page before submission |
+| GitHub + Actions | Repo, CI, `forge deploy`, **GitHub Pages** | **Core.** `pages.yml` publishes the landing page and demo with no secrets and no external account |
+| GitHub Pages | Canonical public URL: landing page at `/`, demo at `/demo/` | **Use** (enable once: Settings → Pages → Source: GitHub Actions; decision D17) |
+| Netlify | Optional second URL for the demo | **Optional.** Config is ready; connect from Netlify's UI if wanted |
 | Render | External backend | **Skip.** Nothing needs it; would add egress and cold starts |
-| Vercel | Same job as Netlify | **Skip** (Hobby is non-commercial as far as I know) |
+| Vercel | Same job as Pages/Netlify | **Skip** (Hobby is non-commercial as far as I know) |
 | Devpost, YouTube/Loom | Submission, demo video | **Use** |
 
 ## 6. Repository layout
@@ -83,13 +84,15 @@ traceflow/
 ├─ docs/PLAN.md                 this file
 ├─ docs/PROGRESS.md             living index: what is done, next, verified, blocked
 ├─ docs/SPIKES.md               the four Forge validation spikes
-├─ packages/core/               pure TS: types, risk, lineage, decisions, normalizers, fixtures, tests
+├─ packages/core/               pure TS: types, risk, lineage, overview, decisions, normalizers, fixtures, tests
 ├─ packages/ui/                 shared investigation UI (`Workbench`), Hallmark styles, UI tests
-├─ demo/                        thin Vite host on sample data (Netlify)
-├─ app/                         Forge app (manifest, resolvers, Custom UI, Rovo agent)   ← created after `forge create`
+├─ demo/                        thin Vite host on sample data (published to Pages at /demo/)
+├─ app/                         Forge app scaffold: manifest (placeholder id), resolvers, KVS cache, Custom UI
+├─ tools/seeder/                idempotent dev-site seeder for the demo story (dry-run by default)
+├─ site/                        the public landing page (published to Pages at /)
 ├─ .claude/skills/hallmark/     vendored Hallmark design skill (MIT)
 ├─ .hallmark/log.json           Hallmark's record of design builds (keeps variety honest)
-└─ .github/workflows/           ci.yml (verify), forge-deploy.yml (manual, untested)
+└─ .github/workflows/           ci.yml (verify), pages.yml (site + demo), forge-deploy.yml (manual)
 ```
 
 ## 7. Data model and risk principles

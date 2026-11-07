@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TraceFlow: knowledge risk and decision lineage</title>
+    <meta
+      name="description"
+      content="TraceFlow connects people, decisions, projects and documentation across Jira and Confluence, so knowledge gaps are found before they become business problems."
+    />
+    <link rel="icon" href="data:," />
+    <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="mast">
+      <div class="container mast-inner">
+        <a class="wordmark" href="./">TraceFlow</a>
+        <nav aria-label="Site">
+          <a href="#investigations">How it works</a>
+          <a href="#evidence">Evidence</a>
+          <a href="#honesty">Honest wording</a>
+          <a class="action" href="./demo/">Try the demo</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container split">
+          <div>
+            <h1>Find the gaps before they walk out.</h1>
+            <p class="hero-line">
+              TraceFlow connects people, decisions, projects and documents across Jira and Confluence.
+            </p>
+            <p class="hero-actions">
+              <a class="btn" href="./demo/">Try the demo</a>
+              <a class="btn-quiet" href="https://github.com/Soham-0047/traceflow">Read the source</a>
+            </p>
+          </div>
+          <figure class="ledger-figure">
+            <figcaption>Sample data: a handover ledger</figcaption>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Finding</th>
+                    <th scope="col" class="num">Records</th>
+                    <th scope="col" class="num">Weight</th>
+                    <th scope="col" class="num">Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Sole-contributor pages</td>
+                    <td class="num">7</td>
+                    <td class="num">5</td>
+                    <td class="num">35</td>
+                  </tr>
+                  <tr>
+                    <td>Unresolved issues assigned</td>
+                    <td class="num">4</td>
+                    <td class="num">2</td>
+                    <td class="num">8</td>
+                  </tr>
+                  <tr>
+                    <td>Decisions awaiting input</td>
+                    <td class="num">2</td>
+                    <td class="num">6</td>
+                    <td class="num">12</td>
+                  </tr>
+                  <tr>
+                    <td>Open pull requests</td>
+                    <td class="num">2</td>
+                    <td class="num">4</td>
+                    <td class="num">8</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th scope="row">Score</th>
+                    <td class="num" colspan="3">63 of 100, high risk</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <section id="investigations" class="band">
+        <div class="container">
+          <h2>Three investigations</h2>
+          <div class="grid-3">
+            <div class="cell">
+              <h3>A person</h3>
+              <p>Open work, sole-contributor pages, pending decisions, with hand-offs.</p>
+            </div>
+            <div class="cell">
+              <h3>A project</h3>
+              <p>An epic traced from intent through plan and work to code.</p>
+            </div>
+            <div class="cell">
+              <h3>A decision</h3>
+              <p>What it drives and who it touches.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="evidence" class="band band-tinted">
+        <div class="container split">
+          <div>
+            <h2>Every finding opens its evidence</h2>
+            <p>Every number opens its records.</p>
+          </div>
+          <dl class="drawer">
+            <div>
+              <dt>What was found</dt>
+              <dd>7 pages with one recorded contributor</dd>
+            </div>
+            <div>
+              <dt>Why it was flagged</dt>
+              <dd>No other recorded editor</dd>
+            </div>
+            <div>
+              <dt>Supporting records</dt>
+              <dd>Payments retry design and 6 more pages</dd>
+            </div>
+            <div>
+              <dt>Confidence</dt>
+              <dd>Medium</dd>
+            </div>
+            <div>
+              <dt>What to do</dt>
+              <dd>Assign a backup owner</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section id="honesty" class="band">
+        <div class="container">
+          <h2>Only what the records support</h2>
+          <div class="grid-2">
+            <div class="cell">
+              <h3>What TraceFlow says</h3>
+              <ul>
+                <li>Audit-ready evidence</li>
+                <li>Decision traceability</li>
+                <li>Sole contributor: one recorded editor</li>
+                <li>Missing: not in connected data</li>
+              </ul>
+            </div>
+            <div class="cell">
+              <h3>What it never claims</h3>
+              <ul>
+                <li>Compliance or SOC 2 proof</li>
+                <li>Proof of who understands something</li>
+                <li>Performance rankings</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band band-tinted">
+        <div class="container">
+          <h2>Runs where your team already works</h2>
+          <p>
+            A Jira page on Forge, reading Jira and Confluence; a Rovo agent is
+            planned.
+          </p>
+          <p class="quiet">
+            A Codegeist 2026 entry; the demo runs on sample data.
+          </p>
+          <p class="actions-row">
+            <a class="btn" href="./demo/">Open the demo</a>
+            <a class="btn-quiet" href="https://github.com/Soham-0047/traceflow">GitHub repository</a>
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="container foot-inner">
+        <p class="wordmark">TraceFlow</p>
+        <nav aria-label="Footer">
+          <a href="./demo/">Demo</a>
+          <a href="https://github.com/Soham-0047/traceflow">Source</a>
+          <a href="https://github.com/Soham-0047/traceflow/blob/main/docs/PLAN.md">Plan</a>
+        </nav>
+        <p class="quiet">Codegeist 2026 entry by Soham-0047.</p>
+      </div>
+    </footer>
+  </body>
+</html>
