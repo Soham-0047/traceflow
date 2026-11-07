@@ -1,18 +1,27 @@
 # TraceFlow progress index
 
-Last updated: 2026-11-06 (session 2). Read `AGENTS.md` first. This file is the resume point for any new session or agent: update it before you stop.
+Last updated: 2026-11-06 (session 2). Read `AGENTS.md` first, and see `PRODUCTS.md` for what each workstream builds. This file is the resume point for any new session or agent: update it before you stop.
 
 <!-- progress:start -->
-| Workstream | Done | Total | Complete |
-| --- | --- | --- | --- |
-| Planning and docs | 4 | 6 | 67% |
-| Core engine (packages/core) | 7 | 11 | 64% |
-| Demo UI (demo) | 7 | 11 | 64% |
-| Forge app (app) | 0 | 7 | 0% |
-| Rovo and Teamwork Graph | 0 | 4 | 0% |
-| CI/CD and hosting | 4 | 6 | 67% |
-| Submission | 0 | 4 | 0% |
-| **Overall** | **22** | **49** | **45%** |
+| Workstream | Tier | Done | Total | Complete |
+| --- | --- | --- | --- | --- |
+| Planning and docs | T1 | 5 | 7 | 71% |
+| TF-02 Engine (packages/core) | T1 | 7 | 12 | 58% |
+| TF-03 Workbench and public demo (demo) | T1 | 7 | 12 | 58% |
+| TF-01 Forge app (app) | T1 | 0 | 7 | 0% |
+| TF-04 Agent (Rovo) and Teamwork Graph | T1 | 0 | 5 | 0% |
+| CI/CD and hosting | T1 | 4 | 6 | 67% |
+| Submission | T1 | 0 | 4 | 0% |
+| TF-05 Seeder and demo kit (tools/seeder) | T1 | 0 | 3 | 0% |
+| TF-08 Site and docs (site) | T1 | 0 | 3 | 0% |
+| TF-06 MCP server (packages/mcp) | T2 | 0 | 3 | 0% |
+| TF-07 Check, the pull-request provenance gate (packages/check) | T2 | 0 | 3 | 0% |
+| TF-09 Cloud, the standalone web app (apps/cloud) | T3 | 0 | 3 | 0% |
+| TF-10 Connectors (packages/connectors) | T3 | 0 | 3 | 0% |
+| TF-11 Impact, change impact analysis | T3 | 0 | 2 | 0% |
+| TF-12 Promises | T3 | 0 | 2 | 0% |
+| **Tier 1 (ships for the hackathon)** | T1 | **23** | **59** | **39%** |
+| **All tiers** | all | **23** | **75** | **31%** |
 <!-- progress:end -->
 
 The table counts the checkboxes under **Workstreams** and is rebuilt with `npm run progress:write` (CI fails if it is stale). Counts measure planned tasks, not effort.
@@ -29,15 +38,16 @@ Next actions, highest first:
 
 ## Workstreams
 
-### Planning and docs
+### [T1] Planning and docs
 - [x] Project plan with scope, decisions, architecture, timeline (`docs/PLAN.md`)
 - [x] Progress index and agent entry point (`docs/PROGRESS.md`, `AGENTS.md`, `CLAUDE.md`)
 - [x] Locked design system and product rules (`DESIGN.md`)
 - [x] Validation spike guide (`docs/SPIKES.md`)
+- [x] Product catalog with tiers, contracts, stack defaults and multi-agent rules (`PRODUCTS.md`)
 - [ ] Confirm the 2026 Codegeist rules, categories and exact deadline time on Devpost
 - [ ] Draft the Devpost description and the demo script against the final feature set
 
-### Core engine (packages/core)
+### [T1] TF-02 Engine (packages/core)
 - [x] `OrgGraph` types and the data-adapter interface
 - [x] Person knowledge-risk assessment with transparent weights and ranking
 - [x] Epic lineage (intent, plan, work, code) with coverage-aware gaps
@@ -48,9 +58,10 @@ Next actions, highest first:
 - [ ] Validate normalizers against live Jira and Confluence payloads (S1)
 - [ ] Map Teamwork Graph results into `OrgGraph` (S2)
 - [ ] Map Bitbucket pull requests into `OrgGraph` (S4)
-- [ ] Change impact analysis (stretch)
+- [ ] Overview aggregates (rank epics, organization health)
+- [ ] Document the `OrgGraph` schema in `PRODUCTS.md` once S1 to S4 settle it
 
-### Demo UI (demo)
+### [T1] TF-03 Workbench and public demo (demo)
 - [x] App shell with top bar and hash routing (state lives in the URL)
 - [x] People view: ranking, handover ledger, evidence card
 - [x] Epics view: lane diagram with linked-record highlighting and gaps
@@ -62,8 +73,9 @@ Next actions, highest first:
 - [ ] Hallmark render-tier lint (needs a headless browser)
 - [ ] Keyboard and screen-reader pass
 - [ ] Netlify site connected with a public URL
+- [ ] Extract shared components into `packages/ui` so the Forge Custom UI can import them
 
-### Forge app (app)
+### [T1] TF-01 Forge app (app)
 - [ ] App registered with `forge create` (needs Soham)
 - [ ] S1: Jira and Confluence data in one resolver
 - [ ] Resolvers returning `OrgGraph` through the adapter interface
@@ -72,13 +84,14 @@ Next actions, highest first:
 - [ ] Minimal manifest scopes
 - [ ] First successful `forge deploy` from GitHub Actions
 
-### Rovo and Teamwork Graph
+### [T1] TF-04 Agent (Rovo) and Teamwork Graph
 - [ ] S2: Teamwork Graph echo and one real query (may need allowlisting)
 - [ ] S3: Rovo agent installed and calling a Forge action
 - [ ] On-demand agent action: top knowledge-continuity risks for a person or project
-- [ ] `rovo:mcp` tools (stretch)
+- [ ] Explainer interface so explanations come only from evidence JSON
+- [ ] `rovo:mcp` tools (stretch, Best app with MCP)
 
-### CI/CD and hosting
+### [T1] CI/CD and hosting
 - [x] CI: typecheck, tests, build on every push
 - [x] Manual Forge deploy workflow (untested)
 - [x] Netlify build config
@@ -86,11 +99,49 @@ Next actions, highest first:
 - [ ] GitHub secrets `FORGE_EMAIL` and `FORGE_API_TOKEN` set
 - [ ] Netlify connected to the repo
 
-### Submission
+### [T1] Submission
 - [ ] Marketplace listing or review ticket
 - [ ] Demo video (about 5 minutes)
 - [ ] Devpost entry with App ID and bonus categories declared
 - [ ] Final README with install steps
+
+### [T1] TF-05 Seeder and demo kit (tools/seeder)
+- [ ] Idempotent seed script for a dev site: epics, pages, remote links, decisions (needs an API token from Soham)
+- [ ] Mapping of the fictional people onto the real dev-site accounts
+- [ ] Demo script and shot list (`docs/demo-script.md`)
+
+### [T1] TF-08 Site and docs (site)
+- [ ] Choose the static stack and lock a page variant of the design system in `DESIGN.md`
+- [ ] Pitch, how it works, install steps, judge guide, honest-wording notes
+- [ ] Public URL linked from the README and Devpost
+
+### [T2] TF-06 MCP server (packages/mcp)
+- [ ] Server with `assess_person_risk`, `trace_epic`, `trace_decision`, `list_people_by_risk` on fixtures
+- [ ] Real-site adapter using an API token
+- [ ] README with client configuration
+
+### [T2] TF-07 Check, the pull-request provenance gate (packages/check)
+- [ ] CLI: pull-request text to Jira key to intent chain, offline on fixtures
+- [ ] GitHub Action wrapper, run in this repo's CI
+- [ ] Bitbucket Pipe and a real-site mode
+
+### [T3] TF-09 Cloud, the standalone web app (apps/cloud)
+- [ ] Architecture decision and free-tier check (proposal: Hono, Cloudflare Workers, D1)
+- [ ] Atlassian OAuth 2.0 (3LO) and multi-site sync
+- [ ] Snapshots and risk-over-time view
+
+### [T3] TF-10 Connectors (packages/connectors)
+- [ ] Contract-test harness for `DataAdapter` implementations
+- [ ] GitHub connector (pull requests by issue key)
+- [ ] Slack or Teams, Drive or Notion, Compass connectors
+
+### [T3] TF-11 Impact, change impact analysis
+- [ ] Engine module that traverses lineage for a changed decision, epic or person
+- [ ] Impact view in the Workbench
+
+### [T3] TF-12 Promises
+- [ ] Commitment detection in Confluence notes
+- [ ] On-demand Rovo skill that offers to create and link a Jira issue
 
 ## Verified vs unverified
 Verified (run in the build sandbox, session 2): core tests (29) and demo tests (12) pass; typecheck passes; `vite build` succeeds; Hallmark static lint 0 FAIL, 0 WARN; CI passed on the first push.
@@ -112,8 +163,12 @@ Unverified: everything that touches Atlassian (Forge deploy, REST payload shapes
 | D10 | Design: Hallmark, Coral theme at app scope, top-bar shell, light only | Vendored in `.claude/skills/hallmark`; rules in `DESIGN.md` |
 | D11 | Demo imports core from source through an alias | No build step before the demo |
 | D12 | Demo adapter exposes `?demo=loading|empty|error` | Lets judges and reviewers see all four states |
+| D13 | Tech stack is open per product; default is TypeScript; the Codegeist app stays on Forge | Soham, 2026-11-06. Budget stays $0 (assumed; see Blockers) |
+| D14 | Work is tiered: T1 ships by Dec 21, T2 only if it helps T1, T3 is briefs until after | Protects the deadline; see `PRODUCTS.md` |
+| D15 | Parallel agents claim a workstream, use `agent/<product>-<topic>` branches and pull requests, keep `main` green | Single-agent pushes to `main` happened in sessions 1 and 2 |
 
 ## Blockers needing Soham
+- Confirm that "any tech stack" does not also relax the $0 budget (assumed it does not).
 - Free Atlassian development site, `forge create`, and the `app.id` from `manifest.yml`.
 - GitHub secrets `FORGE_EMAIL` and `FORGE_API_TOKEN`.
 - Netlify: connect the repo from Netlify's UI.
@@ -122,5 +177,6 @@ Unverified: everything that touches Atlassian (Forge deploy, REST payload shapes
 - If Teamwork Graph returns an authorization error, ask Atlassian support to allowlist the app ID (see S2).
 
 ## Session log (newest first)
+- **2026-11-06, session 2, later.** Wrote `PRODUCTS.md`: twelve products in three tiers, the shared contracts, stack defaults, prize mapping and rules for parallel agents. Progress table now reports Tier 1 separately from all tiers. No product code written; T2 and T3 are briefs only.
 - **2026-11-06, session 2.** Vendored Hallmark (MIT) and dealt the Coral theme at app scope. Built `demo/` (People ledger, Epics lane diagram, Decisions, evidence card, four states with `?demo=` switches, 12 UI tests, Hallmark lint at 0 FAIL and 0 WARN). Added `DESIGN.md`, `AGENTS.md`, `CLAUDE.md`, `docs/SPIKES.md`, this index with a generated progress table, the Netlify config, and CI steps for design lint and the progress check. Not done: anything needing Atlassian access, a real browser (no screenshots or render-tier lint), or Netlify.
 - **2026-11-01, session 1.** Researched the direction and platforms (Forge hosting, free allowances, CI, Teamwork Graph Preview status); wrote `docs/PLAN.md`; pushed the first commit. Built `packages/core`: risk scoring and ranking, epic lineage, decision tracing, Jira and Confluence normalizers, rule text, richer fixtures, 29 tests.

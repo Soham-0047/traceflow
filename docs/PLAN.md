@@ -1,7 +1,7 @@
 # TraceFlow — Project Plan
 
 > Status: v1 · written 2026-11-01 · owner: Soham-0047
-> Living status, decisions made since, and next actions are in [`docs/PROGRESS.md`](PROGRESS.md). Design rules are in [`/DESIGN.md`](../DESIGN.md). Agents start at [`/AGENTS.md`](../AGENTS.md).
+> The product catalog is in [`/PRODUCTS.md`](../PRODUCTS.md). Living status, decisions made since, and next actions are in [`docs/PROGRESS.md`](PROGRESS.md). This plan covers the hackathon product (TF-01 to TF-05, TF-08); the tech stack is open for other products (PROGRESS D13). Design rules are in [`/DESIGN.md`](../DESIGN.md). Agents start at [`/AGENTS.md`](../AGENTS.md).
 > Target: Atlassian **Codegeist 2026** (deadline **Dec 23, 2026** per the project docs; the 2025 cutoff was 10:00 AM PT, so confirm the exact 2026 time on Devpost and aim to submit by **Dec 21**).
 
 ## 1. Positioning
@@ -38,7 +38,7 @@ Principles: records are the source of truth; AI only explains and suggests; star
 | D1 | Build on **Jira + Confluence REST** first; Teamwork Graph is an enrichment layer behind a flag | Teamwork Graph is in Forge **Preview**, read-only, and org admins can toggle each scope; docs still carry a test-organizations-only warning. Core must not collapse if it changes |
 | D2 | **Bitbucket is a spike, not a promise** | No verified supported path yet for a Jira/Confluence-installed Forge app to read PRs |
 | D3 | Rovo agent is **on-demand** (user-invoked action) | A Rovo agent is not a background monitor; scheduled/event triggers can come later |
-| D4 | **Everything runs on Forge** (functions, KVS, Custom UI) | Keeps data on Atlassian (the "Runs on Atlassian" bonus existed in 2025), no external backend to host or pay for |
+| D4 | **The Codegeist app (TF-01, TF-04) runs entirely on Forge** (functions, KVS, Custom UI); other products may use any stack | Keeps data on Atlassian (the "Runs on Atlassian" bonus existed in 2025), no external backend to host or pay for |
 | D5 | **Pure-TypeScript core** (`packages/core`) with a data-adapter interface | Testable without Atlassian access; the same UI can run on mock data (Netlify demo) or Forge data |
 | D6 | **No external LLM key.** Risk scoring is deterministic; Rovo provides the AI | $0, no secrets, and findings are explainable |
 | D7 | ~~`@xyflow/react` for graphs~~ **Superseded (PROGRESS D9):** lineage is an HTML lane diagram with an SVG connector layer | Fewer dependencies, accessible, testable. If a real graph is needed later, use `@xyflow/react`, not `react-flow-renderer` |

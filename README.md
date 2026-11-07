@@ -13,6 +13,16 @@ Built for Atlassian **Codegeist 2026** on Forge. First product: **Knowledge Risk
 - **Evidence Drawer**: every finding shows what was detected, why, which records support it, and how confident it is.
 - **Rovo agent**: ask in natural language, e.g. "what are the biggest knowledge-continuity risks in this project?"
 
+## Products
+
+TraceFlow is one engine with several surfaces and satellites. [`PRODUCTS.md`](PRODUCTS.md) is the full catalog; in short:
+
+| Tier | Products |
+| --- | --- |
+| T1, ships for Codegeist 2026 | TF-01 Forge app, TF-02 Engine, TF-03 Workbench and public demo, TF-04 Rovo agent, TF-05 Seeder, TF-08 Site and docs |
+| T2, only if it helps T1 | TF-06 MCP server, TF-07 Check (pull-request provenance gate) |
+| T3, roadmap | TF-09 Cloud, TF-10 Connectors, TF-11 Impact, TF-12 Promises |
+
 ## Honest wording
 
 TraceFlow provides *audit-ready evidence* and *decision traceability*. It does not certify compliance. "Sole contributor" means one recorded editor; it cannot prove who is the only person who understands something.
@@ -22,6 +32,7 @@ TraceFlow provides *audit-ready evidence* and *decision traceability*. It does n
 | Path | Purpose |
 |---|---|
 | `AGENTS.md` | Start here if you are an AI agent or a new contributor |
+| `PRODUCTS.md` | Every product we are building, tiers, contracts, stack defaults |
 | `docs/PROGRESS.md` | What is done, what is next, what is verified, what is blocked |
 | `docs/PLAN.md` | Direction, decisions, architecture, timeline, submission checklist |
 | `docs/SPIKES.md` | The four Forge validation spikes |

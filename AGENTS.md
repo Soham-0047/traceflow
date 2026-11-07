@@ -4,16 +4,21 @@ TraceFlow is an Atlassian Forge app for the **Codegeist 2026** hackathon (deadli
 
 ## Read in this order
 1. `docs/PROGRESS.md`: what is done, what is next, what is verified, open blockers. **Update it before you stop.**
-2. `docs/PLAN.md`: direction, scope, decisions, architecture, timeline, submission checklist.
-3. `DESIGN.md`: the locked design system and product rules. `.claude/skills/hallmark/` is the vendored Hallmark skill (MIT).
-4. `docs/SPIKES.md`: the four Forge validation spikes that gate real-data work.
+2. `PRODUCTS.md`: every product we are building (TF-01 to TF-12), tiers, shared contracts, stack defaults, and the rules for working in parallel. **Pick your work from here.**
+3. `docs/PLAN.md`: direction, scope, decisions, architecture, timeline, submission checklist.
+4. `DESIGN.md`: the locked design system and product rules. `.claude/skills/hallmark/` is the vendored Hallmark skill (MIT).
+5. `docs/SPIKES.md`: the four Forge validation spikes that gate real-data work.
+
+## Working in parallel
+Several agents may work here at once. Claim a workstream in `docs/PROGRESS.md`, work on `agent/<product>-<topic>`, open a small pull request, keep `main` green, and treat `OrgGraph` and `DataAdapter` as shared contracts. The full rules are at the end of `PRODUCTS.md`. **Tiers:** T1 ships for the hackathon by Dec 21; do T2 only if it helps T1; T3 is briefs only until after.
 
 ## Layout
 | Path | What |
 | --- | --- |
 | `packages/core` | Pure TypeScript engine: `OrgGraph` types, risk scoring, epic lineage, decision tracing, Jira/Confluence normalizers, sample fixtures. No Atlassian dependency. |
 | `demo` | Vite + React UI on sample data (deployed to Netlify). Imports core from source via an alias. |
-| `app` | Forge app. Not created yet; needs `forge register` by Soham (see `app/README.md`). |
+| `app` | Forge app (TF-01, TF-04). Not created yet; needs `forge create` by Soham (see `app/README.md`). |
+| `tools`, `site`, `packages/*`, `apps/*` | Future products from `PRODUCTS.md` (seeder, site, MCP, check, cloud, connectors). Create the folder when you start the product. |
 | `.github/workflows` | `ci.yml` (verify on every push), `forge-deploy.yml` (manual, untested). |
 
 ## Commands (Node 20+)

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Counts the checkboxes under "## Workstreams" in docs/PROGRESS.md and keeps the summary table current.
+// Workstream headings carry a tier tag: "### [T1] Name". T1 ships for the hackathon, T2 reinforces it, T3 is roadmap.
 //   node scripts/progress.mjs           print the table
 //   node scripts/progress.mjs --write   rewrite the table between the progress markers
 //   node scripts/progress.mjs --check   exit 1 if the table in the file is out of date (used by CI)
@@ -16,9 +17,9 @@ const body = text.split('\n## Workstreams')[1]?.split(/\n## (?!#)/)[0] ?? '';
 const rows = [];
 let current;
 for (const line of body.split('\n')) {
-  const heading = /^### (.+)$/.exec(line);
+  const heading = /^### (?:\[T([123])\]\s*)?(.+)$/.exec(line);
   if (heading) {
-    current = { name: heading[1].trim(), done: 0, total: 0 };
+    current = { tier: Number(heading[1] ?? 1), name: heading[2].trim(), done: 0, total: 0 };
     rows.push(current);
     continue;
   }
@@ -30,14 +31,16 @@ for (const line of body.split('\n')) {
 }
 
 const pct = (d, t) => (t === 0 ? 0 : Math.round((d / t) * 100));
-const done = rows.reduce((s, r) => s + r.done, 0);
-const total = rows.reduce((s, r) => s + r.total, 0);
+const sum = (list) => list.reduce((acc, r) => ({ done: acc.done + r.done, total: acc.total + r.total }), { done: 0, total: 0 });
+const t1 = sum(rows.filter((r) => r.tier === 1));
+const all = sum(rows);
 
 const table = [
-  '| Workstream | Done | Total | Complete |',
-  '| --- | --- | --- | --- |',
-  ...rows.map((r) => `| ${r.name} | ${r.done} | ${r.total} | ${pct(r.done, r.total)}% |`),
-  `| **Overall** | **${done}** | **${total}** | **${pct(done, total)}%** |`,
+  '| Workstream | Tier | Done | Total | Complete |',
+  '| --- | --- | --- | --- | --- |',
+  ...rows.map((r) => `| ${r.name} | T${r.tier} | ${r.done} | ${r.total} | ${pct(r.done, r.total)}% |`),
+  `| **Tier 1 (ships for the hackathon)** | T1 | **${t1.done}** | **${t1.total}** | **${pct(t1.done, t1.total)}%** |`,
+  `| **All tiers** | all | **${all.done}** | **${all.total}** | **${pct(all.done, all.total)}%** |`,
 ].join('\n');
 
 const block = `${START}\n${table}\n${END}`;
@@ -59,7 +62,7 @@ if (arg === '--write') {
     console.error('docs/PROGRESS.md summary table is out of date. Run: npm run progress:write');
     process.exit(1);
   }
-  console.log(`progress table is current (${done}/${total}, ${pct(done, total)}%)`);
+  console.log(`progress table is current (tier 1: ${t1.done}/${t1.total}, all: ${all.done}/${all.total})`);
 } else {
   console.log(table);
 }
