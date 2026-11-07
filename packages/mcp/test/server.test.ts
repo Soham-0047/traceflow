@@ -31,7 +31,7 @@ function parse<T>(result: CallToolResult): T {
 }
 
 describe('TraceFlow MCP server over the wire', () => {
-  it('lists all six tools with schemas and truth notes', async () => {
+  it('lists all seven tools with schemas and truth notes', async () => {
     const { client, close } = await connect();
     const listed = (await client.listTools()) as ListToolsResult;
     const names = listed.tools.map((t) => t.name);
@@ -42,6 +42,7 @@ describe('TraceFlow MCP server over the wire', () => {
       'traceflow_epic_lineage',
       'traceflow_decision_trace',
       'traceflow_overview',
+      'traceflow_query',
     ]);
     for (const tool of listed.tools) {
       expect(tool.description).toMatch(/not found in the connected data/);
@@ -166,5 +167,89 @@ describe('TraceFlow MCP server over the wire', () => {
     }
     await client.close();
     await server.close();
+  });
+
+  it('answers a natural-language question deterministically via traceflow_query', async () => {
+    const { call, close } = await connect();
+    const answer = parse<{
+      intent: string;
+      understood: boolean;
+      answer: string;
+      evidence: { source: string; id: string }[];
+      caveats: string[];
+    }>(await call('traceflow_query', { question: 'What breaks if Alex Rivera leaves?' }));
+    expect(answer.understood).toBe(true);
+    expect(answer.intent).toBe('person-impact');
+    expect(answer.answer).toContain('If Alex Rivera becomes unavailable');
+    expect(answer.evidence.length).toBeGreaterThan(0);
+    expect(answer.caveats.length).toBeGreaterThan(0);
+    await close();
+  });
+
+  it('traceflow_query admits when it cannot map a question, with suggestions', async () => {
+    const { call, close } = await connect();
+    const answer = parse<{ understood: boolean; suggestions: string[] }>(
+      await call('traceflow_query', { question: 'what is the weather on mars?' }),
+    );
+    expect(answer.understood).toBe(false);
+    expect(answer.suggestions?.length).toBeGreaterThan(0);
+    await close();
+  });
+
+  it('quarantines broken records from a source and still serves the good ones', async () => {
+    const { sampleGraph } = await import('@traceflow/core');
+    const corrupt = {
+      ...sampleGraph,
+      workItems: [
+        ...sampleGraph.workItems,
+        // Broken: status is not an enum value -> quarantined, not fatal.
+        { ref: { source: 'jira', id: 'BAD-1', title: 'Broken' }, status: 'wednesday' },
+        // Dangling refs -> dropped with warnings.
+        { ref: { source: 'jira', id: 'PAY-99', title: 'Dangling' }, assigneeId: 'ghost', status: 'open', linkedPageIds: ['p1'] },
+      ],
+    };
+    const server = createTraceflowServer({ name: 'corrupt', loadGraph: async () => corrupt as never });
+    const client = new Client({ name: 'test-client', version: '0.0.0' });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+    const result = (await client.callTool({
+      name: 'traceflow_query',
+      arguments: { question: 'What are the biggest knowledge risks right now?' },
+    })) as CallToolResult;
+    const block = result.content?.[0];
+    expect(block && block.type === 'text').toBe(true);
+    if (block && block.type === 'text') {
+      const payload = JSON.parse(block.text) as { understood: boolean; answer: string };
+      expect(payload.understood).toBe(true);
+      expect(payload.answer).toContain('Alex Rivera');
+    }
+    await client.close();
+    await server.close();
+  });
+
+  it('validatedSource logs every warning and quarantine notice once, and caches the sanitized graph', async () => {
+    const { sampleGraph, personImpact } = await import('@traceflow/core');
+    const { validatedSource } = await import('../src/server.js');
+    const logs: string[] = [];
+    let loads = 0;
+    const corrupt = {
+      ...sampleGraph,
+      workItems: [
+        ...sampleGraph.workItems,
+        { ref: { source: 'jira', id: 'BAD-1', title: 'Broken' }, status: 'wednesday' },
+      ],
+    };
+    const source = validatedSource(
+      { name: 'corrupt', loadGraph: async () => { loads++; return corrupt as never; } },
+      (line) => logs.push(line),
+    );
+    const graph1 = await source.loadGraph();
+    const graph2 = await source.loadGraph();
+    expect(loads).toBe(1); // one load, one pipeline, cached after that
+    expect(graph1).toBe(graph2);
+    expect(graph1.workItems.some((w) => w.ref.id === 'BAD-1')).toBe(false);
+    expect(logs.some((l) => l.includes('quarantined $.workItems[11]'))).toBe(true);
+    // The sanitized graph still answers engine questions.
+    expect(personImpact(graph1, 'alex').counts.orphanedPages).toBe(7);
   });
 });

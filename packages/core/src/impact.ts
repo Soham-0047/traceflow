@@ -1,4 +1,5 @@
 import type { Confidence, OrgGraph, RecordRef, WorkItem } from './types.js';
+import { getIndex } from './graph-index.js';
 
 /** What kind of thing loses an owner when the person becomes unavailable. */
 export type ImpactAreaKind =
@@ -65,18 +66,12 @@ interface ImpactedEpic {
 
 /** Epics the person affects: through open work inside them, or by owning the epic record. */
 function impactedEpics(graph: OrgGraph, personId: string): ImpactedEpic[] {
-  const byEpic = new Map<string, WorkItem[]>();
-  for (const item of graph.workItems) {
-    if (item.type === 'epic' || !item.epicId) continue; // containers handled separately
-    if (item.assigneeId !== personId || item.status !== 'open') continue;
-    const bucket = byEpic.get(item.epicId);
-    if (bucket) bucket.push(item);
-    else byEpic.set(item.epicId, [item]);
-  }
+  const index = getIndex(graph);
   const result: ImpactedEpic[] = [];
-  for (const epic of graph.workItems) {
-    if (epic.type !== 'epic') continue;
-    const items = byEpic.get(epic.ref.id) ?? [];
+  for (const epic of index.epics) {
+    const items = (index.childrenByEpic.get(epic.ref.id) ?? [])
+      .filter((item) => item.assigneeId === personId && item.status === 'open')
+      .sort((a, b) => a.ref.id.localeCompare(b.ref.id));
     const ownsEpic = epic.assigneeId === personId && epic.status === 'open';
     if (items.length > 0 || ownsEpic) result.push({ epic, items, ownsEpic });
   }
@@ -85,9 +80,13 @@ function impactedEpics(graph: OrgGraph, personId: string): ImpactedEpic[] {
 
 /** Open, non-epic items assigned to the person that sit in no epic at all. */
 function loneWork(graph: OrgGraph, personId: string): WorkItem[] {
-  return graph.workItems.filter(
-    (w) => w.type !== 'epic' && !w.epicId && w.assigneeId === personId && w.status === 'open',
-  );
+  const items: WorkItem[] = [];
+  for (const item of graph.workItems) {
+    if (item.type === 'epic' || item.epicId) continue;
+    if (item.assigneeId === personId && item.status === 'open') items.push(item);
+  }
+  // Canonical order: the same graph in any input order yields the same report.
+  return items.sort((a, b) => a.ref.id.localeCompare(b.ref.id));
 }
 
 /**
@@ -95,13 +94,15 @@ function loneWork(graph: OrgGraph, personId: string): WorkItem[] {
  * pull request the connected records tie to them alone. Deterministic.
  */
 export function personImpact(graph: OrgGraph, personId: string): PersonImpactReport {
-  const person = graph.people.find((p) => p.id === personId);
+  const index = getIndex(graph);
+  const person = index.peopleById.get(personId);
   if (!person) throw new Error(`Unknown person: ${personId}`);
 
   const areas: ImpactArea[] = [];
 
-  // Stalled epics first, in stable epic order.
-  for (const { epic, items, ownsEpic } of impactedEpics(graph, personId)) {
+  // Stalled epics first, in canonical epic order.
+  const stalled = impactedEpics(graph, personId).sort((a, b) => a.epic.ref.id.localeCompare(b.epic.ref.id));
+  for (const { epic, items, ownsEpic } of stalled) {
     const evidence = [epic.ref, ...items.map((i) => i.ref)];
     const stalledTitle =
       items.length > 0

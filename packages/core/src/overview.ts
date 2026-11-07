@@ -1,4 +1,5 @@
 import type { OrgGraph, PersonRiskReport, RecordRef, RiskWeights } from './types.js';
+import { getIndex } from './graph-index.js';
 import { DEFAULT_WEIGHTS, rankPeopleByRisk } from './risk.js';
 import { traceEpic } from './lineage.js';
 
@@ -49,9 +50,11 @@ export function buildOverview(
   graph: OrgGraph,
   weights: RiskWeights = DEFAULT_WEIGHTS,
 ): OverviewReport {
+  const index = getIndex(graph);
+
   const counts: OverviewCounts = {
     people: graph.people.length,
-    epics: graph.workItems.filter((w) => w.type === 'epic').length,
+    epics: index.epics.length,
     openWorkItems: graph.workItems.filter((w) => w.status === 'open').length,
     soleContributorPages: graph.pages.filter((p) => p.contributorIds.length === 1).length,
     pendingDecisions: graph.decisions.filter(
@@ -62,11 +65,10 @@ export function buildOverview(
 
   const topPeople = rankPeopleByRisk(graph, weights).slice(0, OVERVIEW_TOP_PEOPLE);
 
-  const epics: EpicSummary[] = graph.workItems
-    .filter((w) => w.type === 'epic')
+  const epics: EpicSummary[] = index.epics
     .map((w) => ({
       epic: w.ref,
-      openWork: graph.workItems.filter((c) => c.epicId === w.ref.id && c.status === 'open').length,
+      openWork: (index.childrenByEpic.get(w.ref.id) ?? []).filter((c) => c.status === 'open').length,
       gaps: traceEpic(graph, w.ref.id).gaps.length,
     }))
     .sort((a, b) => b.gaps - a.gaps || b.openWork - a.openWork || a.epic.id.localeCompare(b.epic.id));

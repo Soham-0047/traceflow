@@ -145,10 +145,15 @@ export function deriveDecisions(pages: Page[], workItems: WorkItem[]): Decision[
   const workByPageId = new Map<string, string[]>();
   for (const w of workItems) {
     for (const pid of w.linkedPageIds ?? []) {
-      if (!workByPageId.has(pid)) workByPageId.set(pid, []);
-      workByPageId.get(pid)!.push(w.ref.id);
+      const bucket = workByPageId.get(pid);
+      if (bucket) {
+        if (!bucket.includes(w.ref.id)) bucket.push(w.ref.id);
+      } else {
+        workByPageId.set(pid, [w.ref.id]);
+      }
     }
   }
+  for (const ids of workByPageId.values()) ids.sort();
 
   return pages
     .filter((p) => /^Decision:\s/.test(p.ref.title) && p.contributorIds.length > 0)
@@ -158,5 +163,6 @@ export function deriveDecisions(pages: Page[], workItems: WorkItem[]): Decision[
       status: 'proposed' as const,
       pendingApproverIds: [],
       linkedWorkItemIds: workByPageId.get(p.ref.id),
-    }));
+    }))
+    .sort((a, b) => a.ref.id.localeCompare(b.ref.id));
 }

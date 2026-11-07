@@ -69,6 +69,13 @@ describe('traceflow-check CLI', () => {
     return path;
   }
 
+  function textFile(text: string): string {
+    const dir = mkdtempSync(join(tmpdir(), 'traceflow-check-'));
+    const path = join(dir, 'graph.json');
+    writeFileSync(path, text);
+    return path;
+  }
+
   it('exits 0 with human output for a passing change', () => {
     const outcome = main(['--graph', graphFile(sampleGraph), '--pr', 'pr-31']);
     expect(outcome.code).toBe(0);
@@ -97,6 +104,23 @@ describe('traceflow-check CLI', () => {
     expect(main(['--graph', '/nonexistent.json', '--pr', 'pr-1']).code).toBe(2);
     expect(main(['--graph', graphFile(sampleGraph), '--pr', 'nope']).code).toBe(2);
     expect(main(['--nonsense']).code).toBe(2);
+  });
+
+  it('exits 2 with per-record issue paths for a corrupt export (the gate never runs on silently-broken data)', () => {
+    const corrupt = {
+      ...sampleGraph,
+      workItems: [...sampleGraph.workItems, { ref: { source: 'jira', id: 'BAD-1', title: 'Broken' }, status: 'wednesday' }],
+    };
+    const outcome = main(['--graph', graphFile(corrupt as unknown as OrgGraph), '--pr', 'pr-31']);
+    expect(outcome.code).toBe(2);
+    expect(outcome.text).toContain('is not valid');
+    expect(outcome.text).toContain('$.workItems[11].status');
+  });
+
+  it('exits 2 for a non-object export', () => {
+    const outcome = main(['--graph', textFile('[1,2,3]'), '--pr', 'pr-31']);
+    expect(outcome.code).toBe(2);
+    expect(outcome.text).toContain('is not valid');
   });
 
   it('prints usage with --help', () => {

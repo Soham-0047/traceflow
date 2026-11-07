@@ -21,6 +21,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: End-to-end harness (every pipeline, incl. stdio MCP and the check CLI)
+        run: npm run e2e
       - name: Accessibility audit (axe-core over the site and every demo view)
         run: npm run a11y
       - name: Design lint (Hallmark, app scope)

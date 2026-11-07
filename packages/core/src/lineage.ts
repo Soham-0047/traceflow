@@ -6,6 +6,7 @@ import type {
   RecordRef,
   WorkItem,
 } from './types.js';
+import { getIndex } from './graph-index.js';
 
 /** Left-to-right layers of a lineage graph: intent -> plan -> work -> code. */
 export type Lane = 'intent' | 'plan' | 'work' | 'code';
@@ -58,16 +59,8 @@ const LINEAGE_CAVEATS = [
   'Lineage reflects recorded links only. It is evidence of traceability, not proof that a process was followed.',
 ];
 
-function findDecision(graph: OrgGraph, id: string): Decision | undefined {
-  return graph.decisions.find((d) => d.ref.id === id);
-}
-
-function workItemsForDecision(graph: OrgGraph, decision: Decision): WorkItem[] {
-  const ids = new Set(decision.linkedWorkItemIds ?? []);
-  return graph.workItems.filter(
-    (w) => ids.has(w.ref.id) || (w.linkedPageIds ?? []).includes(decision.ref.id),
-  );
-}
+const byRefId = (a: { ref: { id: string } }, b: { ref: { id: string } }): number =>
+  a.ref.id.localeCompare(b.ref.id);
 
 function decisionStateFindings(decision: Decision, linked: WorkItem[]): Finding[] {
   const findings: Finding[] = [];
@@ -104,12 +97,15 @@ function decisionStateFindings(decision: Decision, linked: WorkItem[]): Finding[
 /**
  * Trace an epic back to its recorded intent (pages, decisions) and forward to
  * its work and code. Gaps are evidence-based and respect data coverage.
+ * Uses the shared graph index: one build serves every epic and every surface.
  */
 export function traceEpic(graph: OrgGraph, epicId: string): LineageReport {
-  const epic = graph.workItems.find((w) => w.ref.id === epicId);
-  if (!epic) throw new Error(`Unknown epic: ${epicId}`);
+  const index = getIndex(graph);
+  const epic = index.workById.get(epicId);
+  if (!epic || epic.type !== 'epic') throw new Error(`Unknown epic: ${epicId}`);
 
-  const children = graph.workItems.filter((w) => w.epicId === epicId);
+  // Children in canonical id order so any input order yields the same report.
+  const children = [...(index.childrenByEpic.get(epicId) ?? [])].sort(byRefId);
   const members = [epic, ...children];
   const memberIds = new Set(members.map((m) => m.ref.id));
 
@@ -129,29 +125,29 @@ export function traceEpic(graph: OrgGraph, epicId: string): LineageReport {
     addEdge(epicNode, addNode(child.ref, 'work', child.status), 'contains');
   }
 
-  // Intent: pages or decisions linked from the epic or its issues.
+  // Intent: pages or decisions linked from the epic or its issues, in canonical
+  // id order so any input ordering yields the same report.
   for (const m of members) {
     const to = nodeId(m.ref);
-    for (const pid of m.linkedPageIds ?? []) {
-      const decision = findDecision(graph, pid);
-      const page = graph.pages.find((p) => p.ref.id === pid);
+    for (const pid of [...new Set(m.linkedPageIds ?? [])].sort()) {
+      const decision = index.decisionsById.get(pid);
+      const page = index.pagesById.get(pid);
       const target = decision?.ref ?? page?.ref;
       if (target) addEdge(addNode(target, 'intent', decision?.status), to, 'specifies');
     }
   }
-  for (const decision of graph.decisions) {
-    for (const wid of decision.linkedWorkItemIds ?? []) {
-      if (memberIds.has(wid)) {
-        const member = members.find((m) => m.ref.id === wid)!;
-        addEdge(addNode(decision.ref, 'intent', decision.status), nodeId(member.ref), 'specifies');
-      }
+  // Decisions that name a member in linkedWorkItemIds.
+  for (const wid of memberIds) {
+    for (const decision of index.decisionsByLinkedWorkItemId.get(wid) ?? []) {
+      const member = members.find((m) => m.ref.id === wid)!;
+      addEdge(addNode(decision.ref, 'intent', decision.status), nodeId(member.ref), 'specifies');
     }
   }
 
   // Code: pull requests linked from the epic or its issues.
   for (const m of members) {
     for (const prId of m.linkedPullRequestIds ?? []) {
-      const pr = graph.pullRequests.find((p) => p.ref.id === prId);
+      const pr = index.pullRequestsById.get(prId);
       if (pr) addEdge(addNode(pr.ref, 'code', pr.state), nodeId(m.ref), 'implements');
     }
   }
@@ -192,7 +188,7 @@ export function traceEpic(graph: OrgGraph, epicId: string): LineageReport {
   }
 
   for (const node of intentNodes) {
-    const decision = findDecision(graph, node.ref.id);
+    const decision = index.decisionsById.get(node.ref.id);
     if (!decision) continue;
     const linked = members.filter((m) => edges.has(`${node.id}|${nodeId(m.ref)}|specifies`));
     gaps.push(...decisionStateFindings(decision, linked));
@@ -215,10 +211,22 @@ export function traceEpic(graph: OrgGraph, epicId: string): LineageReport {
 
 /** Investigate one decision: what it drives, who is involved, and whether it is stale or unapproved. */
 export function traceDecision(graph: OrgGraph, decisionId: string): DecisionReport {
-  const decision = findDecision(graph, decisionId);
+  const index = getIndex(graph);
+  const decision = index.decisionsById.get(decisionId);
   if (!decision) throw new Error(`Unknown decision: ${decisionId}`);
 
-  const linked = workItemsForDecision(graph, decision);
+  // Linked work: items whose remote links point at the decision page, plus
+  // items the decision names directly. Canonical id order.
+  const linkedMap = new Map<string, WorkItem>();
+  for (const item of index.workByLinkedPageId.get(decision.ref.id) ?? []) {
+    linkedMap.set(item.ref.id, item);
+  }
+  for (const wid of decision.linkedWorkItemIds ?? []) {
+    const item = index.workById.get(wid);
+    if (item) linkedMap.set(item.ref.id, item);
+  }
+  const linked = [...linkedMap.values()].sort(byRefId);
+
   const roles = new Map<string, Set<string>>();
   const addRole = (personId: string | undefined, role: string) => {
     if (!personId) return;
@@ -231,19 +239,20 @@ export function traceDecision(graph: OrgGraph, decisionId: string): DecisionRepo
   for (const w of linked) {
     addRole(w.assigneeId, 'assignee of linked work');
     for (const prId of w.linkedPullRequestIds ?? []) {
-      const pr = graph.pullRequests.find((p) => p.ref.id === prId);
+      const pr = index.pullRequestsById.get(prId);
       addRole(pr?.authorId, 'author of linked pull request');
     }
   }
 
   const people = graph.people
     .filter((p) => roles.has(p.id))
-    .map((person) => ({ person, roles: [...roles.get(person.id)!] }));
+    .map((person) => ({ person, roles: [...roles.get(person.id)!] }))
+    .sort((a, b) => a.person.id.localeCompare(b.person.id));
 
   const findings = decisionStateFindings(decision, linked);
   if (decision.status !== 'superseded' && decision.pendingApproverIds.length > 0) {
     const names = decision.pendingApproverIds
-      .map((id) => graph.people.find((p) => p.id === id)?.name ?? id)
+      .map((id) => index.peopleById.get(id)?.name ?? id)
       .join(', ');
     findings.push({
       kind: 'pending-decision',

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import type { OrgGraph } from '@traceflow/core';
+import { runPipelineOnJson, ValidationError } from '@traceflow/core';
 import { checkPullRequest } from './gate.js';
 import type { CheckResult } from './gate.js';
 
@@ -59,9 +59,9 @@ export function main(argv: string[]): CliOutcome {
     return { code: 2, text: `Both --graph and --pr are required.\n\n${USAGE}` };
   }
 
-  let graph: OrgGraph;
+  let graphText: string;
   try {
-    graph = JSON.parse(readFileSync(graphPath, 'utf8')) as OrgGraph;
+    graphText = readFileSync(graphPath, 'utf8');
   } catch (err) {
     return {
       code: 2,
@@ -69,7 +69,11 @@ export function main(argv: string[]): CliOutcome {
     };
   }
 
+  // The export goes through the validation pipeline: byte cap, JSON parse,
+  // full OrgGraph validation. A gate must never run on silently-corrupt data,
+  // so this is strict — every issue is listed with its path.
   try {
+    const { graph } = runPipelineOnJson(graphText, { context: graphPath });
     const result = checkPullRequest(graph, prId);
     return {
       code: result.verdict === 'pass' ? 0 : 1,
@@ -77,6 +81,9 @@ export function main(argv: string[]): CliOutcome {
       result,
     };
   } catch (err) {
+    if (err instanceof ValidationError) {
+      return { code: 2, text: `The OrgGraph at ${graphPath} is not valid:\n${err.message}` };
+    }
     return { code: 2, text: err instanceof Error ? err.message : String(err) };
   }
 }

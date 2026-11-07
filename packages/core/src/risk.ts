@@ -5,6 +5,7 @@ import type {
   RiskLevel,
   RiskWeights,
 } from './types.js';
+import { getIndex } from './graph-index.js';
 
 /** Transparent, adjustable weights. The UI should show the arithmetic. */
 export const DEFAULT_WEIGHTS: RiskWeights = {
@@ -34,14 +35,19 @@ export function assessPersonRisk(
   personId: string,
   weights: RiskWeights = DEFAULT_WEIGHTS,
 ): PersonRiskReport {
-  const person = graph.people.find((p) => p.id === personId);
+  const index = getIndex(graph);
+  const person = index.peopleById.get(personId);
   if (!person) throw new Error(`Unknown person: ${personId}`);
 
   const findings: Finding[] = [];
 
-  const soloPages = graph.pages.filter(
-    (p) => p.contributorIds.length === 1 && p.contributorIds[0] === personId,
-  );
+  // Canonical order (by record id) so the same graph in any input order
+  // produces the same report — stable UI, stable diffs, cacheable answers.
+  const byId = <T extends { ref: { id: string } }>(a: T, b: T): number => a.ref.id.localeCompare(b.ref.id);
+
+  const soloPages = graph.pages
+    .filter((p) => p.contributorIds.length === 1 && p.contributorIds[0] === personId)
+    .sort(byId);
   if (soloPages.length > 0) {
     findings.push({
       kind: 'sole-contributor-page',
@@ -57,9 +63,9 @@ export function assessPersonRisk(
     });
   }
 
-  const openWork = graph.workItems.filter(
-    (w) => w.assigneeId === personId && w.status === 'open',
-  );
+  const openWork = graph.workItems
+    .filter((w) => w.assigneeId === personId && w.status === 'open')
+    .sort(byId);
   if (openWork.length > 0) {
     findings.push({
       kind: 'open-work',
@@ -72,9 +78,9 @@ export function assessPersonRisk(
     });
   }
 
-  const openPrs = graph.pullRequests.filter(
-    (p) => p.authorId === personId && p.state === 'open',
-  );
+  const openPrs = graph.pullRequests
+    .filter((p) => p.authorId === personId && p.state === 'open')
+    .sort(byId);
   if (openPrs.length > 0) {
     findings.push({
       kind: 'open-pull-request',
@@ -87,9 +93,11 @@ export function assessPersonRisk(
     });
   }
 
-  const pending = graph.decisions.filter(
-    (d) => d.status !== 'superseded' && d.pendingApproverIds.includes(personId),
-  );
+  const pending = graph.decisions
+    .filter(
+      (d) => d.status !== 'superseded' && d.pendingApproverIds.includes(personId),
+    )
+    .sort(byId);
   if (pending.length > 0) {
     findings.push({
       kind: 'pending-decision',

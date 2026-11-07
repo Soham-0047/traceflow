@@ -1,4 +1,8 @@
 export * from './types.js';
+export * from './errors.js';
+export * from './validate.js';
+export * from './graph-index.js';
+export * from './pipeline.js';
 export * from './risk.js';
 export * from './impact.js';
 export * from './lineage.js';
@@ -6,4 +10,6 @@ export * from './overview.js';
 export * from './adapter.js';
 export * from './rules.js';
 export * from './normalize.js';
+export * from './query.js';
+export * from './grounding.js';
 export { sampleGraph } from './fixtures.js';

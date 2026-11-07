@@ -1,10 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
+  ANSWERABLE_QUESTIONS,
+  answerQuery,
   buildOverview,
   personImpact,
   rankPeopleByRisk,
   sampleGraph,
+  runPipeline,
   traceDecision,
   traceEpic,
 } from '@traceflow/core';
@@ -27,6 +30,41 @@ export const SAMPLE_SOURCE: GraphSource = {
   name: 'sample',
   loadGraph: async () => sampleGraph,
 };
+
+/**
+ * Wrap any graph source in the validation pipeline (best-effort): broken records
+ * are quarantined, dangling references dropped, and every warning is logged once
+ * to stderr (the log channel for stdio MCP). A hostile or partially-broken source
+ * can serve degraded-but-honest data instead of crashing every tool call.
+ */
+export function validatedSource(source: GraphSource, log: (line: string) => void = console.error): GraphSource {
+  let cached: Promise<OrgGraph> | undefined;
+  return {
+    name: source.name,
+    loadGraph: async () => {
+      if (!cached) {
+        cached = (async () => {
+          const result = runPipeline(await source.loadGraph(), {
+            mode: 'best-effort',
+            context: `source '${source.name}'`,
+          });
+          for (const warning of result.warnings) {
+            log(`traceflow-mcp: warning: ${warning.path}: ${warning.message}`);
+          }
+          for (const rejected of result.rejected) {
+            log(`traceflow-mcp: quarantined ${rejected.path}: ${rejected.reason}`);
+          }
+          return result.graph;
+        })();
+        cached.catch(() => {
+          // Do not cache a failed load; the next call retries the source.
+          cached = undefined;
+        });
+      }
+      return cached;
+    },
+  };
+}
 
 const TRUTH_NOTE =
   'Every finding lists its evidence records. A missing link means not found in the connected data, not that it does not exist.';
@@ -93,14 +131,17 @@ function fail(message: string) {
   return { content: [{ type: 'text' as const, text: message }], isError: true };
 }
 
-/** Build the TraceFlow MCP server over a graph source. */
+/** Build the TraceFlow MCP server over a graph source (validated through the pipeline). */
 export function createTraceflowServer(source: GraphSource = SAMPLE_SOURCE): McpServer {
   const server = new McpServer(
     { name: 'traceflow', version: '0.1.0' },
     { capabilities: { tools: {} } },
   );
 
-  const load = () => source.loadGraph();
+  // One validated wrapper per server: the pipeline runs once per source load
+  // and the sanitized graph is shared by every tool.
+  const validated = validatedSource(source);
+  const load = () => validated.loadGraph();
 
   server.registerTool(
     'traceflow_list_people',
@@ -216,6 +257,23 @@ export function createTraceflowServer(source: GraphSource = SAMPLE_SOURCE): McpS
     async () => {
       const graph = await load();
       return text(buildOverview(graph));
+    },
+  );
+
+  server.registerTool(
+    'traceflow_query',
+    {
+      title: 'Ask a question (deterministic, no model)',
+      description:
+        'Ask one natural-language question about people, risk, impact, epics or decisions. The answer is produced by the deterministic engine — never by a language model — and carries its evidence records and caveats. ' +
+        `Answerable questions include: ${ANSWERABLE_QUESTIONS.map((q) => q.example).join(' ; ')}. ` +
+        'When the question cannot be mapped to the connected data, the tool says so and lists what it can answer instead of guessing. ' +
+        TRUTH_NOTE,
+      inputSchema: { question: z.string().min(1).describe('The question, e.g. "What are the biggest knowledge risks right now?"') },
+    },
+    async ({ question }) => {
+      const graph = await load();
+      return text(answerQuery(graph, question));
     },
   );
 

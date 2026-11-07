@@ -14,12 +14,13 @@
     "test": "npm test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "a11y": "node scripts/a11y.mjs",
+    "e2e": "node scripts/e2e.mjs",
     "lint:design": "node .claude/skills/hallmark/scripts/sloplint.mjs packages/ui/src demo/index.html demo/src --genre modern-minimal --scope app",
     "lint:site": "node .claude/skills/hallmark/scripts/sloplint.mjs site --genre modern-minimal --scope page",
     "progress": "node scripts/progress.mjs",
     "progress:write": "node scripts/progress.mjs --write",
     "progress:check": "node scripts/progress.mjs --check",
-    "verify": "npm run typecheck && npm test && npm run build && npm run lint:design && npm run lint:site && npm run a11y"
+    "verify": "npm run typecheck && npm test && npm run build && npm run e2e && npm run lint:design && npm run lint:site && npm run a11y"
   },
   "devDependencies": {
     "axe-core": "4.10.2",

@@ -16,3 +16,5 @@ site/.hallmark/
 !packages/check/dist/
 # Local assembled Pages preview (site + demo), never committed
 pages-out/
+# e2e harness scratch (graph exports for the subprocess stages)
+.tmp/
