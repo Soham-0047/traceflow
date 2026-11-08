@@ -52,6 +52,37 @@ describe('answerQuery — the six answerable intents', () => {
     expect(result.answer).toContain('proposed');
   });
 
+  it('answers epic-impact questions by key or title, and project-level risk questions', () => {
+    const byTitle = answerQuery(sampleGraph, 'What breaks if the Payments reliability epic changes?');
+    expect(byTitle.understood).toBe(true);
+    expect(byTitle.intent).toBe('epic-impact');
+    expect(byTitle.answer).toContain('If Payments reliability (PAY-1) changes');
+    expect(byTitle.answer).toMatch(/4 open issue\(s\) that lose their recorded plan/);
+    expect(byTitle.answer).toContain('Alex Rivera');
+    expect(byTitle.evidence.length).toBeGreaterThan(0);
+    expect(byTitle.caveats.length).toBeGreaterThan(0);
+
+    // "top risks for project X" is the same blast radius, answered at epic level.
+    const projectRisks = answerQuery(sampleGraph, 'What are the top knowledge-continuity risks in the Payments reliability epic?');
+    expect(projectRisks.understood).toBe(true);
+    expect(projectRisks.intent).toBe('epic-impact');
+    expect(projectRisks.answer).toContain('recorded gap(s)');
+  });
+
+  it('answers decision-impact questions with the blast radius of the decision', () => {
+    const result = answerQuery(sampleGraph, 'What happens if the idempotency key scope decision changes?');
+    expect(result.understood).toBe(true);
+    expect(result.intent).toBe('decision-impact');
+    expect(result.answer).toContain('"Decision: idempotency key scope" is currently proposed');
+    expect(result.answer).toMatch(/1 open issue\(s\) that must be reviewed/);
+    expect(result.answer).toContain('Alex Rivera');
+    expect(result.evidence.length).toBeGreaterThan(0);
+
+    // Status questions without impact words still trace the decision.
+    const status = answerQuery(sampleGraph, 'What is the status of the token format decision?');
+    expect(status.intent).toBe('decision-trace');
+  });
+
   it('answers overview questions with the counts', () => {
     const result = answerQuery(sampleGraph, 'Give me an overview of the organization');
     expect(result.understood).toBe(true);
@@ -115,5 +146,13 @@ describe('answerQuery — honest failure modes', () => {
     const person = answerQuery(empty, 'What is the risk around Alex?');
     expect(person.understood).toBe(false);
     expect(person.answer).toContain('no people');
+  });
+
+  it('refuses an impact question that names no epic or decision, instead of guessing one', () => {
+    const result = answerQuery(sampleGraph, 'What breaks if the epic changes?');
+    expect(result.understood).toBe(false);
+    expect(result.answer).toContain('could not map');
+    expect(result.suggestions).toHaveLength(ANSWERABLE_QUESTIONS.length);
+    expect(result.suggestions).toContain('What breaks if the Payments reliability epic changes?');
   });
 });

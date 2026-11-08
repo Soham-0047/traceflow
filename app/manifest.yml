@@ -1,4 +1,4 @@
-# TraceFlow Forge app (TF-01). UNVERIFIED: this manifest has not been deployed yet.
+# TraceFlow Forge app (TF-01, TF-04). UNVERIFIED: this manifest has not been deployed yet.
 #
 # One-time setup (see app/README.md):
 #   1. forge login
@@ -16,6 +16,59 @@ modules:
   function:
     - key: traceflow-resolver
       handler: backend/index.handler
+    # TF-04: the Rovo agent action. The handler answers deterministically
+    # through the engine's answer layer (backend/agent.ts); the agent prompt
+    # below carries the truth rules for how the model may phrase the payload.
+    - key: traceflow-investigate-fn
+      handler: backend/agent.investigate
+  action:
+    - key: traceflow-investigate
+      name: Investigate knowledge risk
+      function: traceflow-investigate-fn
+      actionVerb: GET
+      description: |
+        Answers a question about knowledge-continuity risks, change impact,
+        lineage or decisions from the connected Jira and Confluence records.
+        Deterministic: the payload already contains the answer, its evidence
+        records and its caveats. Read-only; it never changes any record.
+      inputs:
+        question:
+          title: Question
+          type: string
+          required: true
+          description: The question to investigate, e.g. "What are the biggest knowledge risks right now?" or "What breaks if the Payments reliability epic changes?"
+  rovo:agent:
+    - key: traceflow-analyst
+      name: TraceFlow Risk Analyst
+      description: Reveals knowledge-continuity risks and decision lineage in this workspace, with the evidence records behind every answer.
+      prompt: |
+        You are TraceFlow, an analyst for engineering organizations. You reveal
+        knowledge-continuity risks and decision lineage, and every claim you
+        make must come from the TraceFlow engine, never from your own knowledge.
+
+        Rules:
+        - To answer anything about risks, people, impact, epics or decisions,
+          call the traceflow-investigate action with the user's question.
+          Never answer such questions from memory.
+        - The action returns a JSON payload. Relay its "answer" field as the
+          core of your reply; you may make it friendlier, but never add
+          people, record ids, titles or numbers that are not in the payload.
+        - When the payload's "understood" field is false, say plainly that the
+          question could not be mapped to the connected records, and offer the
+          "suggestions" as examples of what to ask. Never guess.
+        - Keep the payload's "caveats": they state what the records cannot
+          prove, and every honest answer carries them.
+        - When the payload has evidence records, offer them (source, id, url
+          when present) so the user can open each one.
+        - If the payload says the records could not be read, say so and ask
+          the user to try again. Do not invent an answer.
+      conversationStarters:
+        - What are the biggest knowledge risks right now?
+        - What breaks if Alex leaves?
+        - What are the top knowledge-continuity risks in the Payments reliability epic?
+        - What happens if the idempotency key scope decision changes?
+      actions:
+        - traceflow-investigate
 resources:
   # The Forge CLI runs `npm install && npm run build` in src/frontend and serves
   # the build output (vite outDir is set to `build` in the frontend's vite config).

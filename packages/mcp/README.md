@@ -13,8 +13,11 @@ The same TraceFlow engine and `DataAdapter` contract behind the Workbench UI, ex
 | `traceflow_person_risk` | Full risk report for one person: findings, evidence, actions, caveats |
 | `traceflow_person_impact` | What breaks without a person: stalled epics, orphaned pages, blocked decisions, unmerged changes |
 | `traceflow_epic_lineage` | An epic traced from intent through plan and work to code, with gaps |
+| `traceflow_epic_impact` | What breaks if an epic changes: orphaned open work, stale specs, unreviewed changes, who needs to know |
 | `traceflow_decision_trace` | A decision: linked work, people and roles, findings |
+| `traceflow_decision_impact` | What breaks if a decision changes: outdated work, outdated changes, who needs to know |
 | `traceflow_overview` | Organization aggregates: counts, top risks, epics by gaps |
+| `traceflow_query` | Any natural-language question, answered deterministically with evidence and caveats |
 
 Every tool result carries the evidence records (source, id, title, url when known) and the
 truth rules: findings come from records, and a missing link means "not found in the

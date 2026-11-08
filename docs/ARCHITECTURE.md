@@ -30,8 +30,8 @@ How the engine is built, and where each quality — fast, reliable, secure, neve
         ┌───────────────┬────────────────┼────────────────┬──────────────┐
         ▼               ▼                ▼                ▼              ▼
    risk.ts         lineage.ts        impact.ts       overview.ts    query.ts
-   (person         (epic traces,     (blast          (org counts,  (deterministic
-   scores)          decisions)        radius)          epic gaps)    answers)
+   (person         (epic traces,     (person, epic   (org counts,  (deterministic
+   scores)          decisions)        and decision    epic gaps)    answers)
         └───────────────┴────────────────┴────────────────┴──────┬───────┘
                                                                  ▼
                                             ┌─────────────────────────────────┐
@@ -74,15 +74,16 @@ How the engine is built, and where each quality — fast, reliable, secure, neve
 
 ## The no-LLM-trust model (TF-04 groundwork)
 
-1. `answerQuery(graph, question)` maps a question to one of six intents (`overview`, `top-risks`, `person-risk`, `person-impact`, `epic-lineage`, `decision-trace`) with deterministic keyword/entity rules. No model is involved; an unmappable question returns `understood: false` plus the questions the engine *can* answer — it never guesses.
+1. `answerQuery(graph, question)` maps a question to one of eight intents (`overview`, `top-risks`, `person-risk`, `person-impact`, `epic-lineage`, `epic-impact`, `decision-trace`, `decision-impact`) with deterministic keyword/entity rules. No model is involved; an unmappable question returns `understood: false` plus the questions the engine *can* answer — it never guesses.
 2. The `AnswerResult` carries `data` (the structured report) and `evidence` (records). This is the only material an AI surface may phrase.
 3. `groundedAnswer(llmText, answer)` checks the phrasing: every person name, record id and number must exist in the answer's facts. On any violation the caller serves `answer.answer` — the engine's own words, correct by construction. The guard is lexical (it catches invented people, ids and numbers, the common hallucination shapes), and its limits are stated in `grounding.ts`.
+4. The Rovo agent (TF-04, `app/src/backend/agent.ts`) is the one surface whose model layer we cannot intercept: Rovo's model phrases the payload after our function returns. So the action returns the full `AnswerResult` — the deterministic answer is always inside the payload — and the agent's prompt (the part of the model we do control) carries the truth rules: relay the `answer` field, never add people, record ids, titles or numbers, keep the caveats, offer the evidence records, admit an honest miss. Model-extracted inputs are treated as untrusted: validated, capped, never used for authorization; the action is read-only (`actionVerb: GET`).
 
 ## The end-to-end harness
 
 `npm run e2e` (`scripts/e2e.mjs`, in CI after build) walks every pipeline stage with real boundaries:
 
-1. fixtures through the strict pipeline; 2. a corrupt export quarantined (best-effort) and refused (strict) with issue paths; 3. shuffled input → byte-identical fingerprint, analysis and answers; 4. the sample story's known facts; 5. six answer intents + honest miss; 6. grounding accept/reject/fallback; 7. seven MCP tools over `InMemoryTransport`; 8. the **built MCP CLI as a subprocess** answering a real JSON-RPC handshake and `tools/call` over stdio; 9. the **bundled check CLI as a subprocess** returning exit codes 0/1/2 on pass/fail/data-error cases; 10. a synthetic 7,150-record org inside CI-safe performance budgets.
+1. fixtures through the strict pipeline; 2. a corrupt export quarantined (best-effort) and refused (strict) with issue paths; 3. shuffled input → byte-identical fingerprint, analysis and answers; 4. the sample story's known facts, now including epic and decision impact; 5. eight answer intents + two honest misses (nonsense, and an impact question naming no entity); 6. grounding accept/reject/fallback over both a person-risk and an epic-impact answer; 7. nine MCP tools over `InMemoryTransport`; 8. the **built MCP CLI as a subprocess** answering a real JSON-RPC handshake and two `tools/call`s over stdio; 9. the **bundled check CLI as a subprocess** returning exit codes 0/1/2 on pass/fail/data-error cases; 10. a synthetic 7,150-record org inside CI-safe performance budgets.
 
 ## Package map
 
@@ -91,6 +92,6 @@ How the engine is built, and where each quality — fast, reliable, secure, neve
 | `packages/core` | Everything above the trust boundary and below the surfaces. Pure TypeScript, zero runtime dependencies, browser-safe (no Node APIs) — the demo imports it from source. |
 | `packages/ui` | The Workbench (five views) on the same reports. |
 | `demo` | Thin host on sample fixtures. |
-| `packages/mcp` | Seven `traceflow_*` tools over any validated `GraphSource`; stdio CLI with export parsing. |
+| `packages/mcp` | Nine `traceflow_*` tools over any validated `GraphSource`; stdio CLI with export parsing. |
 | `packages/check` | The PR provenance gate; CLI parses exports through the same strict pipeline. |
-| `app` | Forge scaffold; the resolver sanitizes the site-built graph through best-effort before caching. |
+| `app` | Forge scaffold; the resolver and the Rovo agent action sanitize the site-built graph through best-effort before caching, and answer through the same answer layer. |

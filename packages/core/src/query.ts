@@ -2,7 +2,14 @@ import type { OrgGraph, Person, PersonRiskReport, RecordRef, RiskWeights } from 
 import { getIndex } from './graph-index.js';
 import { assessPersonRisk, rankPeopleByRisk } from './risk.js';
 import { buildOverview, type OverviewReport } from './overview.js';
-import { personImpact, type PersonImpactReport } from './impact.js';
+import {
+  personImpact,
+  epicImpact,
+  decisionImpact,
+  type PersonImpactReport,
+  type EpicImpactReport,
+  type DecisionImpactReport,
+} from './impact.js';
 import { traceDecision, traceEpic, type DecisionReport, type LineageReport } from './lineage.js';
 
 /**
@@ -27,7 +34,9 @@ export type AnswerIntent =
   | 'person-risk'
   | 'person-impact'
   | 'epic-lineage'
-  | 'decision-trace';
+  | 'epic-impact'
+  | 'decision-trace'
+  | 'decision-impact';
 
 export interface AnswerableQuestion {
   intent: AnswerIntent;
@@ -41,7 +50,9 @@ export const ANSWERABLE_QUESTIONS: readonly AnswerableQuestion[] = [
   { intent: 'person-risk', example: 'What is the risk around Alex Rivera?', description: 'One person: findings, points, suggested actions, caveats' },
   { intent: 'person-impact', example: 'What breaks if Alex leaves?', description: 'The blast radius of one person: epics, work, pages, decisions, changes' },
   { intent: 'epic-lineage', example: 'Trace the epic PAY-1', description: 'Intent, plan, work and code records behind an epic, plus gaps' },
+  { intent: 'epic-impact', example: 'What breaks if the Payments reliability epic changes?', description: 'The blast radius of a changed epic: open work, stale specs, unreviewed changes, who needs to know' },
   { intent: 'decision-trace', example: 'What is the status of the idempotency decision?', description: 'One decision: linked work, people and roles, findings' },
+  { intent: 'decision-impact', example: 'What happens if the idempotency key scope decision changes?', description: 'The blast radius of a changed decision: outdated work, outdated changes, who needs to know' },
 ];
 
 export interface AnswerResult {
@@ -167,7 +178,7 @@ function matchDecision(graph: OrgGraph, question: string): { decisionId?: string
  * Intent detection (deterministic keyword rules, priority ordered)
  * ------------------------------------------------------------------ */
 
-const IMPACT_RE = /\b(impact|blast radius|without|unavailable|leaves|leaving|left the|offboard|handover|hand-off|succession)\b/i;
+const IMPACT_RE = /\b(impact|blast radius|without|unavailable|leaves|leaving|left the|offboard|handover|hand-off|succession|breaks?|changes?|changed|superseded|reversed|cancelled?|canceled?)\b/i;
 const TOP_RISK_RE = /\b(biggest|largest|top|highest|riskiest|rank|ranking|at risk|risks?)\b/i;
 const OVERVIEW_RE = /\b(overview|summary|health|state of|how (are|is|do|does))\b/i;
 const EPIC_RE = /\b(epic|lineage)\b/i;
@@ -221,6 +232,51 @@ function renderImpact(report: PersonImpactReport): string {
   return (
     `If ${report.personName} becomes unavailable, ${body} ` +
     `This lists what the connected records show would lose an owner; knowledge shared outside Jira, Confluence and Bitbucket is not visible here.`
+  );
+}
+
+function renderEpicImpact(report: EpicImpactReport): string {
+  const c = report.counts;
+  const parts = [
+    c.orphanedWork > 0 ? `${c.orphanedWork} open issue(s) that lose their recorded plan` : null,
+    c.staleSpecs > 0 ? `${c.staleSpecs} linked page(s) or decision(s) worth re-checking` : null,
+    c.unreviewedChanges > 0 ? `${c.unreviewedChanges} open pull request(s) that may implement outdated intent` : null,
+  ].filter((p): p is string => p !== null);
+  const body =
+    parts.length === 0
+      ? 'the connected records tie no open work, linked specifications or open changes to it.'
+      : `${parts.join(', ')}.`;
+  const gapText =
+    report.gaps.length === 0
+      ? ' No gaps were found in its recorded links.'
+      : ` It already has ${report.gaps.length} recorded gap(s): ${report.gaps.map((g) => g.title.toLowerCase()).join('; ')}.`;
+  const who =
+    report.people.length === 0
+      ? ' No person is tied to it through the connected records.'
+      : ` ${report.people.length} person(s) are tied to it through records: ${list(report.people.map((p) => `${p.person.name} (${p.roles.join(', ')})`))}.`;
+  return (
+    `If ${report.epic.title} (${report.epic.id}) changes, ${body}${gapText}${who} ` +
+    `Impact assumes a change of scope or cancellation; the records cannot show which parts would actually change.`
+  );
+}
+
+function renderDecisionImpact(report: DecisionImpactReport): string {
+  const c = report.counts;
+  const parts = [
+    c.outdatedWork > 0 ? `${c.outdatedWork} open issue(s) that must be reviewed against the new decision` : null,
+    c.outdatedChanges > 0 ? `${c.outdatedChanges} open pull request(s) that may implement the wrong intent` : null,
+  ].filter((p): p is string => p !== null);
+  const body =
+    parts.length === 0
+      ? 'the connected records tie no open work or open changes to it.'
+      : `${parts.join(', ')}.`;
+  const who =
+    report.people.length === 0
+      ? ' No person is tied to it through the connected records.'
+      : ` ${report.people.length} person(s) are tied to it through records: ${list(report.people.map((p) => `${p.person.name} (${p.roles.join(', ')})`))}.`;
+  return (
+    `"${report.decision.title}" is currently ${report.status}. If it is superseded or reversed, ${body}${who} ` +
+    `Impact assumes a change to the decision; the records cannot show which conclusions would actually change.`
   );
 }
 
@@ -352,7 +408,21 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
     };
   }
 
-  // 3. Epic lineage.
+  // 3. Epic impact: an epic was matched and the question is about what a change to it affects.
+  if (epicMatch.epicId && (wantsImpact || wantsTop)) {
+    const report = epicImpact(graph, epicMatch.epicId);
+    return {
+      ...base,
+      intent: 'epic-impact',
+      understood: true,
+      answer: renderEpicImpact(report),
+      data: report,
+      evidence: cap(report.areas.flatMap((a) => a.evidence)),
+      caveats: report.caveats,
+    };
+  }
+
+  // 4. Epic lineage.
   if (epicMatch.epicId) {
     const report = traceEpic(graph, epicMatch.epicId);
     return {
@@ -366,7 +436,21 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
     };
   }
 
-  // 4. Decision trace.
+  // 5. Decision impact: a decision was matched and the question is about what a change to it affects.
+  if (decisionMatch.decisionId && wantsImpact) {
+    const report = decisionImpact(graph, decisionMatch.decisionId);
+    return {
+      ...base,
+      intent: 'decision-impact',
+      understood: true,
+      answer: renderDecisionImpact(report),
+      data: report,
+      evidence: cap(report.areas.flatMap((a) => a.evidence)),
+      caveats: report.caveats,
+    };
+  }
+
+  // 6. Decision trace.
   if (decisionMatch.decisionId) {
     const report = traceDecision(graph, decisionMatch.decisionId);
     return {
@@ -380,7 +464,7 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
     };
   }
 
-  // 5. Top risks.
+  // 7. Top risks.
   if (wantsTop) {
     const ranked = rankPeopleByRisk(graph, weights);
     return {
@@ -394,7 +478,7 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
     };
   }
 
-  // 6. Overview.
+  // 8. Overview.
   if (wantsOverview) {
     const report = buildOverview(graph, weights);
     return {

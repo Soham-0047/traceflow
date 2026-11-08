@@ -4,6 +4,7 @@ import { sampleGraph } from '../src/fixtures.js';
 
 const riskAnswer = answerQuery(sampleGraph, 'What is the risk around Alex Rivera?');
 const impactAnswer = answerQuery(sampleGraph, 'What breaks if Alex leaves?');
+const epicImpactAnswer = answerQuery(sampleGraph, 'What breaks if the Payments reliability epic changes?');
 
 describe('checkGrounding', () => {
   it('accepts a faithful rephrasing of the deterministic answer', () => {
@@ -42,6 +43,25 @@ describe('checkGrounding', () => {
       'The records tie a meaningful amount of work and knowledge to Alex Rivera alone; consider a handover before the departure date.';
     const report = checkGrounding(prose, groundingFacts(impactAnswer));
     expect(report.violations.filter((v) => v.kind === 'person')).toEqual([]);
+  });
+
+  it('grounds an epic-impact answer: counts, people and the epic key must come from the report', () => {
+    const faithful =
+      'If Payments reliability (PAY-1) changes, 4 open issues lose their recorded plan, 5 linked pages or decisions are worth re-checking and 2 open pull requests may implement outdated intent. Alex Rivera and Sam Chen are the people who need to know.';
+    const report = checkGrounding(faithful, groundingFacts(epicImpactAnswer));
+    expect(report.violations).toEqual([]);
+    expect(report.grounded).toBe(true);
+
+    // An invented count and an invented stakeholder both fall back.
+    for (const hallucination of [
+      'If Payments reliability changes, 9 open issues lose their recorded plan.',
+      'If Payments reliability changes, Priya Nair owns the epic and must be told first.',
+    ]) {
+      const guarded = groundedAnswer(hallucination, epicImpactAnswer);
+      expect(guarded.grounded, hallucination).toBe(false);
+      expect(guarded.fallbackUsed).toBe(true);
+      expect(guarded.text).toBe(epicImpactAnswer.answer);
+    }
   });
 });
 

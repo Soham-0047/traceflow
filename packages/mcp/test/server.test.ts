@@ -31,7 +31,7 @@ function parse<T>(result: CallToolResult): T {
 }
 
 describe('TraceFlow MCP server over the wire', () => {
-  it('lists all seven tools with schemas and truth notes', async () => {
+  it('lists all nine tools with schemas and truth notes', async () => {
     const { client, close } = await connect();
     const listed = (await client.listTools()) as ListToolsResult;
     const names = listed.tools.map((t) => t.name);
@@ -41,6 +41,8 @@ describe('TraceFlow MCP server over the wire', () => {
       'traceflow_person_impact',
       'traceflow_epic_lineage',
       'traceflow_decision_trace',
+      'traceflow_epic_impact',
+      'traceflow_decision_impact',
       'traceflow_overview',
       'traceflow_query',
     ]);
@@ -130,6 +132,41 @@ describe('TraceFlow MCP server over the wire', () => {
     expect(overview.counts.soleContributorPages).toBe(8);
     expect(overview.topPeople[0]?.personName).toBe('Alex Rivera');
     expect(overview.epics[0]?.epic.id).toBe('PAY-1');
+    await close();
+  });
+
+  it('returns the blast radius for an epic with who needs to know', async () => {
+    const { call, close } = await connect();
+    const impact = parse<{
+      epic: { id: string };
+      counts: { orphanedWork: number; staleSpecs: number; unreviewedChanges: number };
+      people: { person: { id: string }; roles: string[] }[];
+      gaps: { kind: string }[];
+    }>(await call('traceflow_epic_impact', { epic: 'Payments reliability' }));
+    expect(impact.epic.id).toBe('PAY-1');
+    expect(impact.counts).toEqual({ orphanedWork: 4, staleSpecs: 5, unreviewedChanges: 2 });
+    expect(impact.people.map((p) => p.person.id)).toEqual(['alex', 'sam']);
+    expect(impact.gaps.length).toBe(2);
+    await close();
+  });
+
+  it('returns the blast radius for a decision, and fails helpfully for an unknown one', async () => {
+    const { call, close } = await connect();
+    const impact = parse<{
+      decision: { id: string };
+      status: string;
+      counts: { outdatedWork: number; outdatedChanges: number };
+      people: { person: { id: string }; roles: string[] }[];
+    }>(await call('traceflow_decision_impact', { decision: 'idempotency key scope' }));
+    expect(impact.decision.id).toBe('d3');
+    expect(impact.status).toBe('proposed');
+    expect(impact.counts).toEqual({ outdatedWork: 1, outdatedChanges: 1 });
+    expect(impact.people[0]?.roles).toHaveLength(4);
+
+    const unknown = await call('traceflow_decision_impact', { decision: 'a decision that never existed' });
+    expect(unknown.isError).toBe(true);
+    const block = unknown.content?.[0];
+    expect(block && block.type === 'text' ? block.text : '').toMatch(/No decision matches/);
     await close();
   });
 

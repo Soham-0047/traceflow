@@ -482,7 +482,9 @@ var ANSWERABLE_QUESTIONS = [
   { intent: "person-risk", example: "What is the risk around Alex Rivera?", description: "One person: findings, points, suggested actions, caveats" },
   { intent: "person-impact", example: "What breaks if Alex leaves?", description: "The blast radius of one person: epics, work, pages, decisions, changes" },
   { intent: "epic-lineage", example: "Trace the epic PAY-1", description: "Intent, plan, work and code records behind an epic, plus gaps" },
-  { intent: "decision-trace", example: "What is the status of the idempotency decision?", description: "One decision: linked work, people and roles, findings" }
+  { intent: "epic-impact", example: "What breaks if the Payments reliability epic changes?", description: "The blast radius of a changed epic: open work, stale specs, unreviewed changes, who needs to know" },
+  { intent: "decision-trace", example: "What is the status of the idempotency decision?", description: "One decision: linked work, people and roles, findings" },
+  { intent: "decision-impact", example: "What happens if the idempotency key scope decision changes?", description: "The blast radius of a changed decision: outdated work, outdated changes, who needs to know" }
 ];
 var SUGGESTIONS = ANSWERABLE_QUESTIONS.map((q) => q.example);
 

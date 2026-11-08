@@ -6,11 +6,11 @@
  *  1. validate        the sample fixtures pass the strict pipeline
  *  2. corrupt export  best-effort quarantine + strict refusal with issue paths
  *  3. determinism     shuffled input -> identical fingerprint, analysis, answers
- *  4. engine          known facts from the sample story (scores, impact, gaps)
- *  5. answers         the deterministic answer layer: six intents + honest miss
- *  6. grounding       the guard accepts a faithful paraphrase, rejects inventions
- *  7. MCP in-process  a real SDK client over InMemoryTransport, 7 tools
- *  8. MCP over stdio  the built CLI as a subprocess, JSON-RPC handshake + call
+ *  4. engine          known facts from the sample story (scores, impacts, gaps)
+ *  5. answers         the deterministic answer layer: eight intents + honest misses
+ *  6. grounding       the guard accepts faithful paraphrases, rejects inventions
+ *  7. MCP in-process  a real SDK client over InMemoryTransport, 9 tools
+ *  8. MCP over stdio  the built CLI as a subprocess, JSON-RPC handshake + calls
  *  9. check gate      the bundled CLI as a subprocess: exit codes 0 / 1 / 2
  * 10. performance     a synthetic 7k-record org inside CI-safe budgets
  *
@@ -27,6 +27,8 @@ import {
   analyzeAll,
   answerQuery,
   checkGrounding,
+  decisionImpact,
+  epicImpact,
   groundedAnswer,
   groundingFacts,
   graphFingerprint,
@@ -251,16 +253,36 @@ stages.push(stage('4. engine: the sample story reports its known facts', async (
   assert(pay1.gaps.length === 2, `PAY-1 must have 2 gaps, got ${pay1.gaps.length}`);
   const d1 = analysis.decisionReports.find((d) => d.decision.id === 'd1');
   assert(d1.findings.some((f) => f.kind === 'unapproved-decision'), 'd1 must flag work done against a proposal');
-  return `alex 63/high, ${analysis.lineages.length} lineages, ${analysis.decisionReports.length} decisions`;
+  // Epic and decision impact ride in analyzeAll, canonically ordered.
+  assert(analysis.epicImpacts.length === 3, `expected 3 epic impact reports, got ${analysis.epicImpacts.length}`);
+  const pay1Impact = analysis.epicImpacts.find((r) => r.epic.id === 'PAY-1');
+  assert(
+    pay1Impact.counts.orphanedWork === 4 && pay1Impact.counts.staleSpecs === 5 && pay1Impact.counts.unreviewedChanges === 2,
+    `unexpected PAY-1 impact: ${JSON.stringify(pay1Impact.counts)}`,
+  );
+  assert(
+    pay1Impact.people.map((p) => p.person.id).join(',') === 'alex,sam',
+    `PAY-1 impact people must be alex,sam: ${JSON.stringify(pay1Impact.people.map((p) => p.person.id))}`,
+  );
+  assert(analysis.decisionImpacts.length === 3, `expected 3 decision impact reports, got ${analysis.decisionImpacts.length}`);
+  const d3Impact = decisionImpact(sampleGraph, 'd3');
+  assert(
+    d3Impact.counts.outdatedWork === 1 && d3Impact.counts.outdatedChanges === 1,
+    `unexpected d3 impact: ${JSON.stringify(d3Impact.counts)}`,
+  );
+  assert(epicImpact(sampleGraph, 'AUTH-1').counts.staleSpecs === 2, 'AUTH-1 should link the superseded decision d2 as a stale spec');
+  return `alex 63/high, ${analysis.lineages.length} lineages, ${analysis.decisionReports.length} decisions, ${analysis.epicImpacts.length} epic impacts`;
 }));
 
-stages.push(stage('5. answers: six intents, evidence on every answer, honest miss', async () => {
+stages.push(stage('5. answers: eight intents, evidence on every answer, honest misses', async () => {
   const cases = [
     ['What are the biggest knowledge risks right now?', 'top-risks'],
     ['What is the risk around Alex Rivera?', 'person-risk'],
     ['What breaks if Alex leaves?', 'person-impact'],
     ['Trace the epic PAY-1', 'epic-lineage'],
+    ['What are the top knowledge-continuity risks in the Payments reliability epic?', 'epic-impact'],
     ['What is the status of the idempotency decision?', 'decision-trace'],
+    ['What happens if the idempotency key scope decision changes?', 'decision-impact'],
     ['Give me an overview of the organization', 'overview'],
   ];
   for (const [question, intent] of cases) {
@@ -272,10 +294,12 @@ stages.push(stage('5. answers: six intents, evidence on every answer, honest mis
   }
   const miss = answerQuery(sampleGraph, 'what is the weather on mars?');
   assert(!miss.understood && miss.suggestions.length > 0, 'a nonsense question must fail honestly with suggestions');
-  return `${cases.length} intents verified`;
+  const noEntity = answerQuery(sampleGraph, 'What breaks if the epic changes?');
+  assert(!noEntity.understood && noEntity.suggestions.length === 8, 'an impact question naming no epic must fail honestly with 8 suggestions');
+  return `${cases.length} intents verified, 2 honest misses`;
 }));
 
-stages.push(stage('6. grounding: faithful paraphrase passes, inventions fall back', async () => {
+stages.push(stage('6. grounding: faithful paraphrases pass, inventions fall back', async () => {
   const answer = answerQuery(sampleGraph, 'What is the risk around Alex Rivera?');
   const faithful =
     'Alex Rivera carries the highest knowledge-continuity risk in this data: 7 sole-contributor pages, 4 unresolved issues, 2 open pull requests and 2 decisions waiting on input, for a score of 63 (high).';
@@ -289,16 +313,29 @@ stages.push(stage('6. grounding: faithful paraphrase passes, inventions fall bac
     assert(!guarded.grounded && guarded.fallbackUsed, `invention must be rejected: ${hallucination}`);
     assert(guarded.text === answer.answer, 'fallback must be the deterministic answer');
   }
-  return '3 inventions rejected, fallback served';
+  // The same guard over the new epic-impact report shape.
+  const epicAnswer = answerQuery(sampleGraph, 'What breaks if the Payments reliability epic changes?');
+  const epicFaithful =
+    'If Payments reliability (PAY-1) changes, 4 open issues lose their recorded plan, 5 linked pages or decisions are worth re-checking and 2 open pull requests may implement outdated intent. Alex Rivera and Sam Chen need to know.';
+  assert(checkGrounding(epicFaithful, groundingFacts(epicAnswer)).grounded, 'a faithful epic-impact paraphrase must pass');
+  for (const epicHallucination of [
+    'If Payments reliability changes, 9 open issues lose their recorded plan.',
+    'If Payments reliability changes, Priya Nair owns the epic and must be told first.',
+  ]) {
+    const guarded = groundedAnswer(epicHallucination, epicAnswer);
+    assert(!guarded.grounded && guarded.fallbackUsed, `epic-impact invention must be rejected: ${epicHallucination}`);
+    assert(guarded.text === epicAnswer.answer, 'epic-impact fallback must be the deterministic answer');
+  }
+  return '5 inventions rejected, fallbacks served';
 }));
 
-stages.push(stage('7. MCP in-process: seven tools over InMemoryTransport', async () => {
+stages.push(stage('7. MCP in-process: nine tools over InMemoryTransport', async () => {
   const server = createTraceflowServer();
   const client = new Client({ name: 'e2e', version: '0.0.0' });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
   const listed = await client.listTools();
-  assert(listed.tools.length === 7, `expected 7 tools, got ${listed.tools.length}`);
+  assert(listed.tools.length === 9, `expected 9 tools, got ${listed.tools.length}`);
   const called = await client.callTool({
     name: 'traceflow_query',
     arguments: { question: 'What breaks if Alex Rivera leaves?' },
@@ -307,6 +344,12 @@ stages.push(stage('7. MCP in-process: seven tools over InMemoryTransport', async
   assert(payload.intent === 'person-impact' && payload.understood, 'query tool must answer deterministically');
   const direct = answerQuery(sampleGraph, 'What breaks if Alex Rivera leaves?');
   assert(payload.answer === direct.answer, 'MCP answer must equal the engine answer');
+  const epicImpactCall = await client.callTool({
+    name: 'traceflow_epic_impact',
+    arguments: { epic: 'PAY-1' },
+  });
+  const epicPayload = JSON.parse(epicImpactCall.content[0].text);
+  assert(epicPayload.counts.orphanedWork === 4, `epic impact tool counts wrong: ${JSON.stringify(epicPayload.counts)}`);
   await client.close();
   await server.close();
   return `${listed.tools.map((t) => t.name.replace('traceflow_', '')).join(', ')}`;
@@ -317,15 +360,19 @@ stages.push(stage('8. MCP over stdio: the built CLI answers a real JSON-RPC call
   const { answers, stderr } = await mcpStdioCall(mcpCli, { TRACEFLOW_GRAPH: exportPath }, [
     ['tools/list', {}],
     ['tools/call', { name: 'traceflow_query', arguments: { question: 'What is the risk around Alex Rivera?' } }],
+    ['tools/call', { name: 'traceflow_decision_impact', arguments: { decision: 'idempotency key scope' } }],
   ]);
   const listed = answers.get('tools/list:');
-  assert(listed && listed.tools && listed.tools.length === 7, `expected 7 tools over stdio, got ${listed?.tools?.length}`);
+  assert(listed && listed.tools && listed.tools.length === 9, `expected 9 tools over stdio, got ${listed?.tools?.length}`);
   const called = answers.get('tools/call:traceflow_query');
   const payload = JSON.parse(called.content[0].text);
   const direct = answerQuery(sampleGraph, 'What is the risk around Alex Rivera?');
   assert(payload.answer === direct.answer, 'stdio answer must equal the engine answer');
+  const decisionImpactCall = answers.get('tools/call:traceflow_decision_impact');
+  const decisionPayload = JSON.parse(decisionImpactCall.content[0].text);
+  assert(decisionPayload.counts.outdatedWork === 1, `stdio decision impact wrong: ${JSON.stringify(decisionPayload.counts)}`);
   assert(/serving tools over stdio/.test(stderr), 'the CLI must announce itself on stderr');
-  return `tools/list + tools/call round-tripped over stdio`;
+  return `tools/list + 2 tools/call round-tripped over stdio`;
 }));
 
 stages.push(stage('9. check gate: exit codes 0 / 1 / 2 on a real export', async () => {

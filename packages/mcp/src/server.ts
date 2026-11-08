@@ -4,6 +4,8 @@ import {
   ANSWERABLE_QUESTIONS,
   answerQuery,
   buildOverview,
+  decisionImpact,
+  epicImpact,
   personImpact,
   rankPeopleByRisk,
   sampleGraph,
@@ -239,6 +241,45 @@ export function createTraceflowServer(source: GraphSource = SAMPLE_SOURCE): McpS
       const graph = await load();
       try {
         return text(traceDecision(graph, resolveDecisionId(graph, decision)));
+      } catch (err) {
+        return fail(err instanceof Error ? err.message : String(err));
+      }
+    },
+  );
+
+  server.registerTool(
+    'traceflow_epic_impact',
+    {
+      title: 'What breaks if an epic changes',
+      description:
+        'Change-impact blast radius for one epic: the open work that loses its recorded plan, the linked pages and decisions worth re-checking, the open pull requests that may implement outdated intent, the people who need to know, and the epic’s pre-existing lineage gaps. ' +
+        TRUTH_NOTE,
+      inputSchema: { epic: z.string().describe('Epic key or title, e.g. "PAY-1"') },
+    },
+    async ({ epic }) => {
+      const graph = await load();
+      try {
+        const target = resolveEpic(graph, epic);
+        return text(epicImpact(graph, target.ref.id));
+      } catch (err) {
+        return fail(err instanceof Error ? err.message : String(err));
+      }
+    },
+  );
+
+  server.registerTool(
+    'traceflow_decision_impact',
+    {
+      title: 'What breaks if a decision changes',
+      description:
+        'Change-impact blast radius for one decision: the open work linked to it that must be reviewed, the open pull requests that may implement the wrong intent, and the people who need to know. ' +
+        TRUTH_NOTE,
+      inputSchema: { decision: z.string().describe('Decision id or title (a unique part of the title works)') },
+    },
+    async ({ decision }) => {
+      const graph = await load();
+      try {
+        return text(decisionImpact(graph, resolveDecisionId(graph, decision)));
       } catch (err) {
         return fail(err instanceof Error ? err.message : String(err));
       }

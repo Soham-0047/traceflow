@@ -5,7 +5,14 @@ import { parseOrgGraphJson, sanitizeGraph, strictGraph } from './validate.js';
 import { getIndex, graphFingerprint, type GraphIndex } from './graph-index.js';
 import { rankPeopleByRisk } from './risk.js';
 import { buildOverview, type OverviewReport } from './overview.js';
-import { personImpact, type PersonImpactReport } from './impact.js';
+import {
+  personImpact,
+  epicImpact,
+  decisionImpact,
+  type PersonImpactReport,
+  type EpicImpactReport,
+  type DecisionImpactReport,
+} from './impact.js';
 import { traceEpic, traceDecision, type DecisionReport, type LineageReport } from './lineage.js';
 
 /**
@@ -97,6 +104,8 @@ export interface AnalysisResult {
   impacts: PersonImpactReport[];
   lineages: LineageReport[];
   decisionReports: DecisionReport[];
+  epicImpacts: EpicImpactReport[];
+  decisionImpacts: DecisionImpactReport[];
 }
 
 export function analyzeAll(graph: OrgGraph, weights?: RiskWeights): AnalysisResult {
@@ -115,6 +124,12 @@ export function analyzeAll(graph: OrgGraph, weights?: RiskWeights): AnalysisResu
       .sort((a, b) => a.epic.id.localeCompare(b.epic.id)),
     decisionReports: graph.decisions
       .map((d) => traceDecision(graph, d.ref.id))
+      .sort((a, b) => a.decision.id.localeCompare(b.decision.id)),
+    epicImpacts: index.epics
+      .map((epic) => epicImpact(graph, epic.ref.id))
+      .sort((a, b) => a.epic.id.localeCompare(b.epic.id)),
+    decisionImpacts: graph.decisions
+      .map((d) => decisionImpact(graph, d.ref.id))
       .sort((a, b) => a.decision.id.localeCompare(b.decision.id)),
   };
 }
