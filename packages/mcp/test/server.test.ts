@@ -121,6 +121,24 @@ describe('TraceFlow MCP server over the wire', () => {
     await close();
   });
 
+  it('resolves entities tolerantly through the shared fuzzy matchers', async () => {
+    const { call, close } = await connect();
+    // Typo'd name, lowercase key and distinctive title word all resolve.
+    const typoName = parse<{ personId: string }>(
+      await call('traceflow_person_risk', { person: 'Alexs Rivera' }),
+    );
+    expect(typoName.personId).toBe('alex');
+    const lowercaseKey = parse<{ epic: { id: string } }>(
+      await call('traceflow_epic_impact', { epic: 'pay-1' }),
+    );
+    expect(lowercaseKey.epic.id).toBe('PAY-1');
+    const distinctiveWord = parse<{ decision: { id: string } }>(
+      await call('traceflow_decision_trace', { decision: 'the idempotency decision' }),
+    );
+    expect(distinctiveWord.decision.id).toBe('d3');
+    await close();
+  });
+
   it('answers an overview with counts, top people and epic ranking', async () => {
     const { call, close } = await connect();
     const overview = parse<{

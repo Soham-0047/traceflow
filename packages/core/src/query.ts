@@ -1,5 +1,4 @@
-import type { OrgGraph, Person, PersonRiskReport, RecordRef, RiskWeights } from './types.js';
-import { getIndex } from './graph-index.js';
+import type { OrgGraph, PersonRiskReport, RecordRef, RiskWeights } from './types.js';
 import { assessPersonRisk, rankPeopleByRisk } from './risk.js';
 import { buildOverview, type OverviewReport } from './overview.js';
 import {
@@ -11,6 +10,18 @@ import {
   type DecisionImpactReport,
 } from './impact.js';
 import { traceDecision, traceEpic, type DecisionReport, type LineageReport } from './lineage.js';
+import {
+  matchPerson,
+  matchEpic,
+  matchDecision,
+  type PersonMatch,
+} from './matcher.js';
+import {
+  scoreIntents,
+  impactSignal,
+  rankingSignal,
+  arbitrateFreeQuestion,
+} from './intent.js';
 
 /**
  * The deterministic answer layer: `answerQuery` turns a natural-language
@@ -19,6 +30,15 @@ import { traceDecision, traceEpic, type DecisionReport, type LineageReport } fro
  * it): an LLM may rephrase `answer`, but the facts always come from
  * `data` + `evidence` produced here, and `checkGrounding` (grounding.ts)
  * verifies any rephrasing against them.
+ *
+ * Understanding runs on the in-house NLU (no model, no network):
+ *  - `matcher.ts` resolves WHICH person, epic or decision the question names,
+ *    tolerating typos, reordered words and partial names, with ambiguity
+ *    reported instead of guessed;
+ *  - `intent.ts` scores WHAT is being asked (blast radius, ranking, overview,
+ *    trace) as a weighted sum of word signals.
+ *  The measured understanding efficiency of this layer is evaluated by
+ * `eval.ts` (a labeled corpus) and gated in CI at 88% or better.
  *
  * Rules, matching the product's truth rules:
  *  - a question the engine cannot answer returns `understood: false` plus the
@@ -77,112 +97,10 @@ const list = (items: string[]): string =>
   items.length === 0 ? 'none' : items.length === 1 ? items[0]! : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]!}`;
 
 /* ------------------------------------------------------------------ *
- * Entity detection (deterministic)
+ * Entity detection and intent scoring live in the in-house NLU:
+ *  - matcher.ts (people, epics, decisions: typo-tolerant, ambiguity-aware)
+ *  - intent.ts  (weighted word-signal scores per intent)
  * ------------------------------------------------------------------ */
-
-interface PersonMatch {
-  person?: Person;
-  /** All people a single name-token could mean; set when person is undefined. */
-  ambiguous?: Person[];
-  /** A name-like word is present but matched nobody (e.g. empty graph, typo). */
-  unmatchedMention?: string;
-}
-
-function matchPerson(graph: OrgGraph, question: string): PersonMatch {
-  const q = question.trim();
-  const lower = q.toLowerCase();
-
-  // Exact id.
-  const byId = graph.people.find((p) => p.id === q);
-  if (byId) return { person: byId };
-
-  // Exact full name (case-insensitive).
-  const byName = graph.people.find((p) => p.name.toLowerCase() === lower);
-  if (byName) return { person: byName };
-
-  // Full name contained in the question.
-  const contained = graph.people.filter((p) => lower.includes(p.name.toLowerCase()));
-  if (contained.length === 1) return { person: contained[0]! };
-
-  // Single name token (first or last name, or a prefix like "Sam" for "Samir"),
-  // when the people it could mean are not exactly one.
-  const words = lower.split(/[^a-z0-9'-]+/).filter((w) => w.length >= 3);
-  const candidates = new Set<Person>();
-  for (const person of graph.people) {
-    const tokens = person.name.toLowerCase().split(/[^a-z0-9'-]+/).filter((w) => w.length >= 3);
-    if (tokens.some((t) => words.some((w) => t === w || t.startsWith(w) || w.startsWith(t)))) {
-      candidates.add(person);
-    }
-  }
-  if (candidates.size === 1) return { person: [...candidates][0]! };
-  if (candidates.size > 1) return { ambiguous: [...candidates] };
-
-  // A name-like mention that matched nobody: a capitalized word (not the first
-  // word, which is usually just the sentence start, and not a record key like
-  // PAY-1 or an acronym). Reported so the engine can say "no such person"
-  // instead of silently answering a different question.
-  const tokens = question.split(/\s+/);
-  for (const token of tokens.slice(1)) {
-    const word = token.replace(/[^A-Za-z'-]/g, '');
-    if (/^[A-Z][a-z']{2,}$/.test(word)) {
-      return { unmatchedMention: word };
-    }
-  }
-  return {};
-}
-
-/** Issue-key-like tokens (PAY-12) plus unique case-insensitive epic-title containment. */
-function matchEpic(graph: OrgGraph, question: string): { epicId?: string; ambiguous?: boolean } {
-  const index = getIndex(graph);
-  const keys = question.match(/\b[A-Z][A-Z0-9]{1,9}-\d+\b/g) ?? [];
-  for (const key of keys) {
-    const epic = index.workById.get(key);
-    if (epic?.type === 'epic') return { epicId: epic.ref.id };
-  }
-  const lower = question.toLowerCase();
-  const containing = index.epics.filter((e) => e.ref.title.length >= 3 && lower.includes(e.ref.title.toLowerCase()));
-  if (containing.length === 1) return { epicId: containing[0]!.ref.id };
-  if (containing.length > 1) return { ambiguous: true };
-  return {};
-}
-
-/** Content words of a decision title (the "Decision: " prefix is noise). */
-const titleWords = (title: string): string[] =>
-  title
-    .toLowerCase()
-    .replace(/^decision:\s*/, '')
-    .split(/[^a-z0-9]+/)
-    .filter((w) => w.length >= 4);
-
-function matchDecision(graph: OrgGraph, question: string): { decisionId?: string; ambiguous?: boolean } {
-  const q = question.trim().toLowerCase();
-  const byId = graph.decisions.find((d) => d.ref.id.toLowerCase() === q);
-  if (byId) return { decisionId: byId.ref.id };
-  const byTitle = graph.decisions.find((d) => d.ref.title.toLowerCase() === q);
-  if (byTitle) return { decisionId: byTitle.ref.id };
-  const containing = graph.decisions.filter(
-    (d) => d.ref.title.length >= 3 && q.includes(d.ref.title.toLowerCase()),
-  );
-  if (containing.length === 1) return { decisionId: containing[0]!.ref.id };
-  if (containing.length > 1) return { ambiguous: true };
-  // Significant-word match: "the idempotency decision" -> the decision whose
-  // title words include 'idempotency', when exactly one does.
-  const words = new Set(q.split(/[^a-z0-9]+/));
-  const wordMatches = graph.decisions.filter((d) => titleWords(d.ref.title).some((w) => words.has(w)));
-  if (wordMatches.length === 1) return { decisionId: wordMatches[0]!.ref.id };
-  if (wordMatches.length > 1) return { ambiguous: true };
-  return {};
-}
-
-/* ------------------------------------------------------------------ *
- * Intent detection (deterministic keyword rules, priority ordered)
- * ------------------------------------------------------------------ */
-
-const IMPACT_RE = /\b(impact|blast radius|without|unavailable|leaves|leaving|left the|offboard|handover|hand-off|succession|breaks?|changes?|changed|superseded|reversed|cancelled?|canceled?)\b/i;
-const TOP_RISK_RE = /\b(biggest|largest|top|highest|riskiest|rank|ranking|at risk|risks?)\b/i;
-const OVERVIEW_RE = /\b(overview|summary|health|state of|how (are|is|do|does))\b/i;
-const EPIC_RE = /\b(epic|lineage)\b/i;
-const DECISION_RE = /\b(decision|decisions|adr)\b/i;
 
 /* ------------------------------------------------------------------ *
  * Answer rendering (deterministic templates)
@@ -327,15 +245,13 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
   const q = question.trim();
   const base = { question: q };
 
-  const personMatch = matchPerson(graph, q);
+  const personMatch: PersonMatch = matchPerson(graph, q);
   const epicMatch = matchEpic(graph, q);
   const decisionMatch = matchDecision(graph, q);
 
-  const wantsImpact = IMPACT_RE.test(q);
-  const wantsTop = TOP_RISK_RE.test(q);
-  const wantsOverview = OVERVIEW_RE.test(q);
-  const wantsEpic = EPIC_RE.test(q);
-  const wantsDecision = DECISION_RE.test(q);
+  const scores = scoreIntents(q);
+  const wantsImpact = impactSignal(scores);
+  const wantsTop = rankingSignal(scores);
 
   const notUnderstood = (answer: string, extraSuggestions?: string[]): AnswerResult => ({
     ...base,
@@ -371,10 +287,10 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
         : `No person matching '${personMatch.unmatchedMention}' exists in the connected data. Known people: ${known}.`,
     );
   }
-  if (epicMatch.ambiguous && wantsEpic) {
+  if (epicMatch.ambiguous && scores.epic >= 2) {
     return notUnderstood('That matches more than one epic. Please use the epic key, for example PAY-1.');
   }
-  if (decisionMatch.ambiguous && wantsDecision) {
+  if (decisionMatch.ambiguous && scores.decision >= 2) {
     return notUnderstood('That matches more than one decision. Please use the exact title or id.');
   }
 
@@ -464,8 +380,9 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
     };
   }
 
-  // 7. Top risks.
-  if (wantsTop) {
+  // 7-8. No entity: the free-question arbitration (ranking or overview).
+  const free = arbitrateFreeQuestion(scores);
+  if (free === 'top-risks') {
     const ranked = rankPeopleByRisk(graph, weights);
     return {
       ...base,
@@ -477,9 +394,7 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
       caveats: ['Scores come from recorded activity only; they cannot prove who understands what.'],
     };
   }
-
-  // 8. Overview.
-  if (wantsOverview) {
+  if (free === 'overview') {
     const report = buildOverview(graph, weights);
     return {
       ...base,

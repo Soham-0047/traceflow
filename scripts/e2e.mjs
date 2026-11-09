@@ -13,6 +13,7 @@
  *  8. MCP over stdio  the built CLI as a subprocess, JSON-RPC handshake + calls
  *  9. check gate      the bundled CLI as a subprocess: exit codes 0 / 1 / 2
  * 10. performance     a synthetic 7k-record org inside CI-safe budgets
+ * 11. efficiency      the labeled NLU corpus: measured understanding, gated >= 88%
  *
  * Run after `npm run build` (the harness loads the built dists, not the
  * TypeScript sources): `npm run e2e`.
@@ -29,6 +30,8 @@ import {
   checkGrounding,
   decisionImpact,
   epicImpact,
+  evaluateAnswerLayer,
+  formatEvalSummary,
   groundedAnswer,
   groundingFacts,
   graphFingerprint,
@@ -444,6 +447,32 @@ stages.push(stage('10. performance: synthetic 7k-record org inside budget', asyn
   assert(cold < 5000, `cold analyzeAll too slow: ${cold}ms (budget 5000ms)`);
   assert(warm < cold, `warm run should reuse the index: warm ${warm}ms vs cold ${cold}ms`);
   return `cold ${cold}ms, warm ${warm}ms, 7,150 records`;
+}));
+
+/* ------------------------------------------------------------------ */
+
+stages.push(stage('11. efficiency: the labeled NLU corpus, measured and gated', async () => {
+  const report = evaluateAnswerLayer(sampleGraph);
+  // The floor: 88% of realistic questions handled correctly end to end
+  // (right intent on the right entity, or an honest refusal). The tuned band
+  // is 88-95%; the documented synonym gaps in the corpus are the headroom.
+  assert(
+    report.efficiency >= 0.88,
+    `answer-layer efficiency ${(report.efficiency * 100).toFixed(1)}% is below the 88% floor`,
+  );
+  assert(report.total >= 140, `corpus too small: ${report.total} cases`);
+  assert(
+    report.refusals.refused === report.refusals.total,
+    `honest-refusal regression: ${report.refusals.refused}/${report.refusals.total}`,
+  );
+  // Every understood answer keeps the end-to-end contract.
+  for (const failure of report.failures) {
+    assert(
+      !failure.actual.understood || failure.actual.intent !== null,
+      'understood answers must carry an intent',
+    );
+  }
+  return formatEvalSummary(report);
 }));
 
 /* ------------------------------------------------------------------ */

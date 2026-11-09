@@ -12,4 +12,8 @@ export * from './rules.js';
 export * from './normalize.js';
 export * from './query.js';
 export * from './grounding.js';
+export * from './text.js';
+export * from './matcher.js';
+export * from './intent.js';
+export * from './eval.js';
 export { sampleGraph } from './fixtures.js';
