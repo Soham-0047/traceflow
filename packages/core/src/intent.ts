@@ -34,7 +34,11 @@ interface Signal {
 const IMPACT: Signal[] = [
   { re: /\bblast radius\b/i, weight: 3 },
   { re: /\bwhat (?:breaks|happens|do (?:we|you) lose)\b/i, weight: 3 },
-  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|quits|resigns|retires|is unavailable|becomes unavailable|got hit|gets hit|changes|changed|is cancelled|is canceled|gets cancelled|gets canceled|is reversed|gets reversed|is superseded|gets superseded|is descoped|gets descoped|is dropped|gets dropped)\b/i, weight: 3 },
+  // Availability wording inside the if-clause: "how exposed are we if sam
+  // is out sick?" — illness and leave are temporary unavailability, the same
+  // hypothetical the blast radius answers. Kept inside the if-lane so a bare
+  // "sam is out sick today" (a statement, not a question) scores nothing.
+  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|quits|resigns|retires|is unavailable|becomes unavailable|is out sick|calls in sick|is on vacation|is on leave|goes on leave|got hit|gets hit|changes|changed|is cancelled|is canceled|gets cancelled|gets canceled|is reversed|gets reversed|is superseded|gets superseded|is descoped|gets descoped|is dropped|gets dropped)\b/i, weight: 3 },
   { re: /\b(?:before|when)\s+(?:he|she|they)\s+(?:leaves?|left|goes|quit|quits|resigns?)\b/i, weight: 3 },
   { re: /\b(?:hit by a bus|bus factor)\b/i, weight: 3 },
   { re: /\b(?:offboard(?:ing|s)?|handover|hand-off|handoff|succession)\b/i, weight: 3 },
@@ -46,7 +50,7 @@ const IMPACT: Signal[] = [
   { re: /\bbottleneck\b/i, weight: 3 },
   { re: /\bdamage\b/i, weight: 2 },
   { re: /\bimpact\b/i, weight: 2 },
-  { re: /\b(?:without|unavailable|loses?|losing)\b/i, weight: 2 },
+  { re: /\b(?:without|unavailable|loses?|losing|lost)\b/i, weight: 2 },
   { re: /\b(?:breaks?|stalls?|blocked|orphaned?)\b/i, weight: 2 },
   // Change-verbs as actions ("we cancel", "superseding", "plan to reverse") —
   // but NOT past participles used as state ("the decision is superseded"),
@@ -75,6 +79,14 @@ const TOP_RISKS: Signal[] = [
   // The hyphen form ("highest-impact") must fire too, so the separator class
   // is [-\s]+, not \s+.
   { re: /\b(?:most|highest|biggest|largest)[-\s]+impact\b/i, weight: 3 },
+  // Session 10 frontier closures: three more ways chat asks for the risk
+  // ranking. "weakest link" and "liability" are risk nouns; "carrying the
+  // most context" is the load phrasing. The load phrase must stay phrase-
+  // tight: "who has the most context on the payments system?" names a topic
+  // the records cannot rank, and it must keep refusing (corpus honest-miss).
+  { re: /\bweakest links?\b/i, weight: 3 },
+  { re: /\bliabilit(?:y|ies)\b/i, weight: 3 },
+  { re: /\bcarrying\s+the\s+most\s+context\b/i, weight: 3 },
   { re: /\bat\s+risk\b/i, weight: 2 },
   { re: /\brisks?\b|\bexposure\b/i, weight: 2 },
   { re: /\brank(?:ed|ing|s)?\b/i, weight: 1 },
@@ -93,6 +105,10 @@ const OVERVIEW: Signal[] = [
   { re: /\bhealth(?:y)?\b/i, weight: 2 },
   { re: /\bhow are (?:we|things|you|they|people|everyone)\b/i, weight: 2 },
   { re: /\bhow is (?:the|our|it|this|everything|everyone)\b/i, weight: 2 },
+  // "What is our knowledge coverage?" — coverage questions are org-level
+  // questions; the overview is the report that counts coverage-shaped facts
+  // (sole-contributor pages, pending decisions, epic gaps).
+  { re: /\bcoverage\b/i, weight: 2 },
   { re: /\b(?:overall|organization|organisation|org|landscape|dashboard)\b/i, weight: 1 },
   { re: /\btell me about the (?:team|org|organization|organisation)\b/i, weight: 2 },
 ];
@@ -107,6 +123,12 @@ const DECISION: Signal[] = [
   { re: /\bdecisions?\b/i, weight: 2 },
   { re: /\badrs?\b/i, weight: 2 },
   { re: /\bstatus\b/i, weight: 1 },
+  // Decide-verb phrasings carry the decision domain without the noun
+  // "decision": "what did we decide on retries?", "who made the call on the
+  // token format?", "why did we move away from the queue approach?".
+  { re: /\bdecid(?:e|es|ed|ing)\b/i, weight: 2 },
+  { re: /\bmade\s+the\s+call\b/i, weight: 2 },
+  { re: /\bmov(?:e|es|ed|ing)\s+away\s+from\b/i, weight: 2 },
 ];
 
 function sum(signals: Signal[], question: string): number {

@@ -146,3 +146,58 @@ describe('arbitrateFreeQuestion — the plural-epic guard', () => {
     expect(arbitrateFreeQuestion(scoreIntents('How healthy is the team?'))).toBe('overview');
   });
 });
+
+describe('scoreIntents — session 10 lexicon and wording expansion', () => {
+  it('scores the new risk synonyms as strong ranking', () => {
+    for (const q of [
+      'who is our weakest link?',
+      'who is our most dangerous liability?',
+      "who's carrying the most context these days?",
+    ]) {
+      expect(rankingStrong(scoreIntents(q)), q).toBe(true);
+    }
+  });
+
+  it('keeps the carrying-context phrase tight', () => {
+    // "who has the most context on the payments system?" names a topic the
+    // records cannot rank — no ranking signal may fire on the has-form.
+    expect(rankingSignal(scoreIntents('who has the most context on the payments system?'))).toBe(false);
+    // And any other "carrying" question is not the load phrasing.
+    expect(rankingSignal(scoreIntents('who is carrying the team?'))).toBe(false);
+  });
+
+  it('scores availability wording inside the if-lane as strong impact', () => {
+    for (const q of [
+      'how exposed are we if sam is out sick?',
+      'what breaks if sam is on leave?',
+      'who is exposed if alex calls in sick?',
+    ]) {
+      expect(impactStrong(scoreIntents(q)), q).toBe(true);
+    }
+  });
+
+  it('does not fire impact on bare availability statements', () => {
+    // No if-clause: "sam is out sick today" is a statement, not a question.
+    expect(impactSignal(scoreIntents('sam is out sick today'))).toBe(false);
+  });
+
+  it('scores "lost" as impact wording', () => {
+    expect(impactStrong(scoreIntents('what if we lost alex tomorrow?'))).toBe(true);
+  });
+
+  it('scores coverage questions as overview', () => {
+    for (const q of ['what is our knowledge coverage?', 'how is our knowledge coverage?']) {
+      expect(scoreIntents(q).overview, q).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('scores decide-verb phrasings as decision-domain', () => {
+    for (const q of [
+      'what did we decide on retries?',
+      'who made the call on the token format?',
+      'why did we move away from the queue approach?',
+    ]) {
+      expect(scoreIntents(q).decision, q).toBeGreaterThanOrEqual(2);
+    }
+  });
+});

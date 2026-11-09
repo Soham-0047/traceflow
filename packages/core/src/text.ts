@@ -115,6 +115,35 @@ export function typoBudget(token: string): number {
   return 3;
 }
 
+/**
+ * Inflectional equality: the same content word in singular and plural form
+ * ("retry" / "retries", "risk" / "risks", "box" / "boxes"). Covers the three
+ * English plural rules that matter for record titles — bare -s, -es after a
+ * sibilant, and consonant+y -> -ies — in both directions.
+ *
+ * This is NOT a stemmer: derivationally related words ("decide" / "decision",
+ * "run" / "runbook") stay different words with different meanings, because
+ * folding them together would make any decide-verb question match any
+ * "decision" record. Only the inflectional suffix is folded, and only when
+ * the remainder is a substantial word (3+ chars for -s/-es, 4+ for y->ies).
+ *
+ * The typo budget cannot cover this gap: "retry" -> "retries" costs three
+ * edits (y->i plus two insertions), far beyond any budget a 5-letter word
+ * gets — yet every native speaker reads them as the same word.
+ */
+export function inflectionalMatch(word: string, candidate: string): boolean {
+  if (word === candidate) return true;
+  const sOrEs = (base: string, suffixed: string): boolean =>
+    base.length >= 3 && (suffixed === `${base}s` || suffixed === `${base}es`);
+  if (sOrEs(word, candidate) || sOrEs(candidate, word)) return true;
+  const yToIes = (base: string, plural: string): boolean =>
+    base.length >= 4 &&
+    base.endsWith('y') &&
+    !'aeiou'.includes(base[base.length - 2]!) &&
+    plural === `${base.slice(0, -1)}ies`;
+  return yToIes(word, candidate) || yToIes(candidate, word);
+}
+
 /** True when `candidate` is `word` or within its typo budget. */
 export function tokenMatches(word: string, candidate: string): boolean {
   if (word === candidate) return true;

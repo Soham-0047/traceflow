@@ -1,6 +1,6 @@
 import type { Decision, OrgGraph, Person, WorkItem } from './types.js';
 import { getIndex } from './graph-index.js';
-import { normalize, tokens, typoBudget, editDistance } from './text.js';
+import { normalize, tokens, typoBudget, editDistance, inflectionalMatch } from './text.js';
 
 /**
  * The fuzzy entity layer of the in-house NLU: turns a natural-language
@@ -128,14 +128,21 @@ function prefixMatch(a: string, b: string): boolean {
 }
 
 /**
- * Name-token equality: exact, prefix, or within the typo budget — with one
- * exception: a 3-character query token may sit 1 edit from a longer name
- * token ("alx" -> "alex"). Three-character words get no general fuzzy budget
- * ("sam" vs "sat" are different words), but a 3-letter fragment next to a
- * 4+ letter name is almost always a truncated or mistyped name.
+ * Name-token equality: exact, inflectional (singular/plural), prefix, or
+ * within the typo budget — with one exception: a 3-character query token
+ * may sit 1 edit from a longer name token ("alx" -> "alex").
+ * Three-character words get no general fuzzy budget ("sam" vs "sat" are
+ * different words), but a 3-letter fragment next to a 4+ letter name is
+ * almost always a truncated or mistyped name.
+ *
+ * The inflectional lane (text.ts `inflectionalMatch`) is what lets
+ * "the retry mechanism" anchor the "queue vs cron for retries" decision:
+ * "retry" -> "retries" is a y->ies plural, three edits apart — beyond every
+ * typo budget — yet the same word to any reader.
  */
 function nameTokenMatches(word: string, candidate: string): boolean {
   if (word === candidate) return true;
+  if (inflectionalMatch(word, candidate)) return true;
   if (prefixMatch(word, candidate)) return true;
   const shortFragment = word.length === 3 && candidate.length >= 4 ? 1 : 0;
   const budget = Math.max(Math.min(typoBudget(word), typoBudget(candidate)), shortFragment);
@@ -245,6 +252,21 @@ const DECISION_DOMAIN_WORDS = new Set([
   'changes', 'supersede', 'superseded', 'superseding', 'reverse', 'reversed',
   'cancel', 'approved', 'approval',
 ]);
+
+/**
+ * Phrase signals that anchor a question to the decision domain when no
+ * single content token does: "what did we decide on retries?" has no
+ * decision noun, but the decide-verb carries the domain just as strongly
+ * (it only ever introduces decision talk). "move away from" is the same:
+ * asking why the team abandoned an approach asks about the recorded
+ * decision behind it. Phrase-tested against the raw question, because the
+ * signal spans several words the tokenizer would scatter.
+ */
+const DECISION_DOMAIN_PHRASES: RegExp[] = [
+  /\bdecid(?:e|es|ed|ing)\b/i,
+  /\bmade\s+the\s+call\b/i,
+  /\bmov(?:e|es|ed|ing)\s+away\s+from\b/i,
+];
 
 /** Content tokens of a record title, with noise ("Decision:") removed. */
 export function titleTokens(title: string): string[] {
@@ -370,7 +392,9 @@ export function matchDecision(graph: OrgGraph, question: string, options: Record
   const qTokens = tokens(q);
   const words = new Set(rawWords(q));
   const hasDomainWord =
-    options.assumeDomain === true || qTokens.some((t) => DECISION_DOMAIN_WORDS.has(t));
+    options.assumeDomain === true ||
+    qTokens.some((t) => DECISION_DOMAIN_WORDS.has(t)) ||
+    DECISION_DOMAIN_PHRASES.some((re) => re.test(q));
 
   const matcherIndex = getMatcherIndex(graph);
   const records = matcherIndex.decisionRecords;

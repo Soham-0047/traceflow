@@ -177,6 +177,105 @@ describe('Impact', () => {
   });
 });
 
+describe('Impact — epics and decisions (session 10)', () => {
+  it('round-trips kind-aware impact routes', () => {
+    const route = { view: 'impact' as const, kind: 'epic' as const, id: 'PAY-1', finding: 'orphaned-work-0' };
+    expect(parseHash(hrefFor(route))).toEqual(route);
+    expect(parseHash(hrefFor({ view: 'impact', kind: 'decision', id: 'd3' }))).toEqual({
+      view: 'impact',
+      kind: 'decision',
+      id: 'd3',
+      finding: undefined,
+    });
+    // A bare kind URL auto-selects the first subject; person URLs are unchanged.
+    expect(parseHash('#/impact/epic')).toEqual({ view: 'impact', kind: 'epic', id: undefined, finding: undefined });
+    expect(parseHash('#/impact/alex')).toEqual({ view: 'impact', id: 'alex', finding: undefined });
+  });
+
+  it('opens the epic tab on the first epic with per-kind sections, gaps and people', async () => {
+    open('#/impact/epic');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Payments reliability (PAY-1): what a change affects' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Work that loses its plan' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Records to re-check' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Unreviewed changes' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Already recorded gaps' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Who needs to know' })).toBeInTheDocument();
+    const main = screen.getByRole('region', { name: 'Change impact' });
+    expect(within(main).getByText('Alex Rivera')).toBeInTheDocument();
+    expect(within(main).getByText('Sam Chen')).toBeInTheDocument();
+    expect(window.location.hash).toContain('#/impact/epic/PAY-1');
+  });
+
+  it('fills the evidence drawer from an epic impact row and keeps the selection in the URL', async () => {
+    const user = userEvent.setup();
+    open('#/impact/epic/PAY-1');
+    await screen.findByRole('heading', { level: 1, name: 'Payments reliability (PAY-1): what a change affects' });
+    await user.click(screen.getByRole('button', { name: /Fix duplicate charge on retry loses its recorded plan/ }));
+    const drawer = screen.getByRole('complementary');
+    expect(within(drawer).getByText('Why it was flagged')).toBeInTheDocument();
+    expect(window.location.hash).toContain('#/impact/epic/PAY-1/finding/orphaned-work-0');
+  });
+
+  it('shows a recorded gap through the same evidence drawer', async () => {
+    const user = userEvent.setup();
+    open('#/impact/epic/PAY-1');
+    await screen.findByRole('heading', { name: 'Already recorded gaps' });
+    await user.click(screen.getByRole('button', { name: /finished issue\(s\) have no linked pull request/ }));
+    const drawer = screen.getByRole('complementary');
+    expect(within(drawer).getByText('Why it was flagged')).toBeInTheDocument();
+    expect(window.location.hash).toContain('/finding/done-without-implementation-0');
+  });
+
+  it('switches subjects through the tab strip', async () => {
+    const user = userEvent.setup();
+    open('#/impact');
+    await screen.findByRole('heading', { level: 1, name: 'Alex Rivera: what is left behind' });
+    const tabs = screen.getByRole('navigation', { name: 'Impact subject' });
+    await user.click(within(tabs).getByRole('link', { name: 'Epics' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Payments reliability (PAY-1): what a change affects' }),
+    ).toBeInTheDocument();
+    await user.click(within(tabs).getByRole('link', { name: 'Decisions' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'queue vs cron for retries: what a change affects' }),
+    ).toBeInTheDocument();
+    // The person tab keeps its legacy URL shape.
+    await user.click(within(tabs).getByRole('link', { name: 'People' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alex Rivera: what is left behind' })).toBeInTheDocument();
+    expect(window.location.hash).toContain('#/impact/alex');
+  });
+
+  it('opens the decision tab with outdated work and who needs to know', async () => {
+    open('#/impact/decision');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'queue vs cron for retries: what a change affects' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Status: proposed/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Work to review against the new decision' })).toBeInTheDocument();
+    expect(screen.getByText(/Fix duplicate charge on retry may no longer match the intent/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Who needs to know' })).toBeInTheDocument();
+  });
+
+  it('restores a selected decision impact area from the URL', async () => {
+    open('#/impact/decision/d3/finding/outdated-work-0');
+    const drawer = await screen.findByRole('complementary');
+    const titled = await within(drawer).findByText(/Add idempotency keys may no longer match the intent/);
+    expect(titled).toBeInTheDocument();
+    expect(window.location.hash).toContain('#/impact/decision/d3/finding/outdated-work-0');
+  });
+
+  it('shows an empty state per kind when the graph has none', async () => {
+    const noEpics: OrgGraph = {
+      ...sampleGraph,
+      workItems: sampleGraph.workItems.filter((w) => w.type !== 'epic'),
+    };
+    open('#/impact/epic', createStaticAdapter('no-epics', noEpics));
+    expect(await screen.findByRole('heading', { name: 'No epics yet' })).toBeInTheDocument();
+  });
+});
+
 describe('Regions have four states', () => {
   it('loading', async () => {
     open('', { name: 'loading', loadGraph: () => new Promise<OrgGraph>(() => {}) });

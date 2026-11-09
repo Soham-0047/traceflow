@@ -273,9 +273,13 @@ export const EVAL_CORPUS_HARD: readonly EvalCase[] = [
   // answering with the people ranking would be confidently wrong.
   { question: 'which epics are most at risk right now?', expect: { understood: false } },
 
-  /* ------- session 9: the next documented frontier (open gaps) ------- */
-  // Ideal behavior an ideal engine would have; the current one misses —
-  // this is the honest headroom that keeps the measured number in band.
+  /* ------- session 9 frontier, closed in session 10 (regression cases) -------
+   * These nine phrasings were the documented session-9 gaps; the lexicon
+   * expansion (ranking synonyms weakest-link/liability/carrying-context,
+   * availability wording out-sick/on-leave in the if-lane, "lost", coverage
+   * as an overview signal) plus the decide-verb domain phrases and the
+   * inflectional token lane closed them. They stay in the corpus so a
+   * lexicon regression fails CI. */
   { question: 'who is our weakest link?', expect: { understood: true, intent: 'top-risks' } },
   { question: 'who is our most dangerous liability?', expect: { understood: true, intent: 'top-risks' } },
   { question: "who's carrying the most context these days?", expect: { understood: true, intent: 'top-risks' } },
@@ -285,6 +289,64 @@ export const EVAL_CORPUS_HARD: readonly EvalCase[] = [
   { question: 'what did the team decide about the retry mechanism?', expect: { understood: true, intent: 'decision-trace', decisionId: 'd1' } },
   { question: 'what did we decide on retries?', expect: { understood: true, intent: 'decision-trace', decisionId: 'd1' } },
   { question: 'why did we move away from the queue approach?', expect: { understood: true, intent: 'decision-trace', decisionId: 'd1' } },
+
+  /* ------- session 10: regression cases for the closures and new lanes ------- */
+  // The new ranking synonyms work in real sentence shapes, not just the
+  // documented phrasings.
+  { question: 'who is the weakest link on the payments team?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'our biggest liability?', expect: { understood: true, intent: 'top-risks' } },
+  // A ranking synonym naming ONE person is that person's risk profile
+  // (mirrors "is priya a single point of failure?").
+  { question: 'is sam a liability?', expect: { understood: true, intent: 'person-risk', personId: 'sam' } },
+  { question: 'who is carrying the most context on the team?', expect: { understood: true, intent: 'top-risks' } },
+  // Availability wording and "lost" inside and around the if-lane.
+  { question: 'what if we lost priya tomorrow?', expect: { understood: true, intent: 'person-impact', personId: 'priya' } },
+  { question: 'what breaks if sam is on leave?', expect: { understood: true, intent: 'person-impact', personId: 'sam' } },
+  { question: 'who is exposed if alex calls in sick?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  // Coverage as an overview question.
+  { question: 'how is our knowledge coverage?', expect: { understood: true, intent: 'overview' } },
+  // Decide-verb questions resolve the right decision through the domain
+  // phrases and the inflectional token lane ("retry" -> "retries").
+  { question: 'what did we decide about the token format?', expect: { understood: true, intent: 'decision-trace', decisionId: 'd2' } },
+  { question: 'why did we move away from cron?', expect: { understood: true, intent: 'decision-trace', decisionId: 'd1' } },
+  { question: 'what did the team decide on the idempotency key scope?', expect: { understood: true, intent: 'decision-trace', decisionId: 'd3' } },
+  { question: 'who made the call on retries?', expect: { understood: true, intent: 'decision-trace', decisionId: 'd1' } },
+
+  /* ------- session 10: boundary refusals for the new signals ------- */
+  // The decide-verb and carrying-context signals must stay tight: a decide
+  // question about something with no recorded decision refuses, and the
+  // carrying-context phrase is not any "carrying" question.
+  { question: 'what did we decide about the offsite?', expect: { understood: false } },
+  { question: 'who is carrying the team?', expect: { understood: false } },
+
+  /* ------- session 10: more unanswerable-but-plausible, must refuse ------- */
+  // Workload, sentiment and assignment questions: the records cannot show
+  // burnout, ticket load, pager duty or happiness.
+  { question: 'who is about to burn out?', expect: { understood: false } },
+  { question: 'who has the most open tickets?', expect: { understood: false } },
+  { question: 'did anyone update the runbook?', expect: { understood: false } },
+  { question: 'who should pick up the payments pager?', expect: { understood: false } },
+  { question: 'who is the happiest person on the team?', expect: { understood: false } },
+
+  /* ------- session 10: the next documented frontier (open gaps) ------- */
+  // Ideal behavior an ideal engine would have; the current one misses —
+  // this is the honest headroom that keeps the measured number in band.
+  // Two families: (a) ranking synonyms not yet in the lexicon (linchpin,
+  // key persons, indispensable, guardians of tribal knowledge, spread
+  // thin, never want to lose, fallout); (b) scoping and priority wording
+  // (a decision blocking an epic's work, deprioritize as a change-verb,
+  // a scoped "payments single point of failure" ranking).
+  { question: 'who is our linchpin?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who are our key persons?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is our most indispensable engineer?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'what is the fallout of priya leaving?', expect: { understood: true, intent: 'person-impact', personId: 'priya' } },
+  { question: 'who are the guardians of our tribal knowledge?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is spread the thinnest across epics?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who do we never want to lose?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'which decision is blocking the payments work?', expect: { understood: true, intent: 'decision-trace', decisionId: 'd1' } },
+  { question: 'what if we deprioritize the auth epic?', expect: { understood: true, intent: 'epic-impact', epicId: 'AUTH-1' } },
+  { question: 'what if the payments epic gets deprioritized?', expect: { understood: true, intent: 'epic-impact', epicId: 'PAY-1' } },
+  { question: 'who is the payments single point of failure?', expect: { understood: true, intent: 'epic-impact', epicId: 'PAY-1' } },
 ];
 
 /* ------------------------------------------------------------------ *

@@ -160,3 +160,25 @@ describe('matcher index cache (session 9)', () => {
     expect(matchPerson(sampleGraph, 'how much risk does sam chen carry?').person?.id).toBe('sam');
   });
 });
+
+describe('matchDecision — session 10: decide-verb domain phrases', () => {
+  it('anchors decide-verb questions to the right decision', () => {
+    // "retry" reaches d1 through the inflectional lane ("retries" title token).
+    expect(matchDecision(sampleGraph, 'what did we decide about the retry mechanism?')).toEqual({ decisionId: 'd1' });
+    expect(matchDecision(sampleGraph, 'what did we decide on retries?')).toEqual({ decisionId: 'd1' });
+    expect(matchDecision(sampleGraph, 'why did we move away from the queue approach?')).toEqual({ decisionId: 'd1' });
+    expect(matchDecision(sampleGraph, 'what did we decide about the token format?')).toEqual({ decisionId: 'd2' });
+    expect(matchDecision(sampleGraph, 'what did the team decide on the idempotency key scope?')).toEqual({ decisionId: 'd3' });
+  });
+
+  it('still refuses decide questions about unknown subjects', () => {
+    // The domain phrase opens the anchor lane; it must not invent matches.
+    expect(matchDecision(sampleGraph, 'what did we decide about the offsite?')).toEqual({});
+    expect(matchDecision(sampleGraph, 'what did we decide about lunch?')).toEqual({});
+  });
+
+  it('keeps topic-knowledge questions out of the decision domain', () => {
+    // No decide wording, no decision noun: the anchor lane stays closed.
+    expect(matchDecision(sampleGraph, 'who knows the most about the auth service?')).toEqual({});
+  });
+});

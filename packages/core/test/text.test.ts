@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bestTokenScore,
   editDistance,
+  inflectionalMatch,
   initialsOf,
   normalize,
   tokenMatches,
@@ -111,5 +112,41 @@ describe('bestTokenScore', () => {
 
   it('is 0 when nothing is close', () => {
     expect(bestTokenScore(['deploy', 'service'], ['reliability'])).toBe(0);
+  });
+});
+
+describe('inflectionalMatch (session 10: singular/plural token equality)', () => {
+  it('matches the three plural rules in both directions', () => {
+    // bare -s
+    expect(inflectionalMatch('risk', 'risks')).toBe(true);
+    expect(inflectionalMatch('risks', 'risk')).toBe(true);
+    expect(inflectionalMatch('token', 'tokens')).toBe(true);
+    // -es after a sibilant
+    expect(inflectionalMatch('box', 'boxes')).toBe(true);
+    expect(inflectionalMatch('boxes', 'box')).toBe(true);
+    // consonant + y -> -ies (the case the typo budget cannot cover)
+    expect(inflectionalMatch('retry', 'retries')).toBe(true);
+    expect(inflectionalMatch('retries', 'retry')).toBe(true);
+    expect(inflectionalMatch('story', 'stories')).toBe(true);
+    expect(inflectionalMatch('entity', 'entities')).toBe(true);
+  });
+
+  it('does not fold derivationally related words', () => {
+    // Same prefix, different word: a stemmer would match these; the
+    // inflectional lane deliberately does not.
+    expect(inflectionalMatch('decide', 'decision')).toBe(false);
+    expect(inflectionalMatch('run', 'runbook')).toBe(false);
+    expect(inflectionalMatch('pay', 'payments')).toBe(false);
+  });
+
+  it('does not match unrelated words or trivial fragments', () => {
+    expect(inflectionalMatch('alex', 'priya')).toBe(false);
+    expect(inflectionalMatch('queue', 'cron')).toBe(false);
+    // 2-letter bases are too short to pluralize meaningfully
+    expect(inflectionalMatch('vs', 'vss')).toBe(false);
+  });
+
+  it('is reflexive', () => {
+    expect(inflectionalMatch('retries', 'retries')).toBe(true);
   });
 });
