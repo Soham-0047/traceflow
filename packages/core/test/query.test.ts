@@ -156,3 +156,83 @@ describe('answerQuery — honest failure modes', () => {
     expect(result.suggestions).toContain('What breaks if the Payments reliability epic changes?');
   });
 });
+
+describe('answerQuery — session 9: commands, synonyms, did-you-mean', () => {
+  it('refuses scheduling and messaging commands instead of answering a risk profile', () => {
+    for (const q of [
+      'can you schedule a 1:1 with alex?',
+      'book a meeting with priya nair',
+      'please ping sam chen about the handover',
+      'can you message alex?',
+      'send an email to priya about the offsite',
+    ]) {
+      const result = answerQuery(sampleGraph, q);
+      expect(result.understood, q).toBe(false);
+      expect(result.evidence, q).toEqual([]);
+      expect(result.answer, q).toContain('looks like a request');
+      expect(result.suggestions, q).toHaveLength(ANSWERABLE_QUESTIONS.length);
+    }
+  });
+
+  it('does not over-fire the command guard on legitimate questions', () => {
+    // "send me the top risks" is a ranking request, not a message request.
+    expect(answerQuery(sampleGraph, 'send me the top risks').intent).toBe('top-risks');
+    expect(answerQuery(sampleGraph, 'send me the top risks').understood).toBe(true);
+    expect(answerQuery(sampleGraph, 'can you tell me about alex?').intent).toBe('person-risk');
+    expect(answerQuery(sampleGraph, 'what is the release schedule?').understood).toBe(false);
+  });
+
+  it('answers the closed synonym gaps with the right intent and entity', () => {
+    expect(answerQuery(sampleGraph, 'what are the consequences of priya leaving?').intent).toBe('person-impact');
+    expect(answerQuery(sampleGraph, 'who is the bottleneck on the payments epic?').intent).toBe('epic-impact');
+    expect(answerQuery(sampleGraph, 'who is our single point of failure?').intent).toBe('top-risks');
+    expect(answerQuery(sampleGraph, 'who is irreplaceable here?').intent).toBe('top-risks');
+    expect(answerQuery(sampleGraph, 'who holds the most institutional knowledge?').intent).toBe('top-risks');
+    expect(answerQuery(sampleGraph, 'do we have a succession plan?').intent).toBe('top-risks');
+    // A SPOF question naming one person is that person's profile.
+    const priya = answerQuery(sampleGraph, 'is priya a single point of failure?');
+    expect(priya.intent).toBe('person-risk');
+    expect((priya.data as { personId: string }).personId).toBe('priya');
+  });
+
+  it('treats a capitalized risk phrase as emphasis, not an unknown person', () => {
+    const result = answerQuery(sampleGraph, 'Who is our Single Point of Failure?');
+    expect(result.understood).toBe(true);
+    expect(result.intent).toBe('top-risks');
+  });
+
+  it('refuses plural-epic ranking questions instead of guessing the people ranking', () => {
+    const result = answerQuery(sampleGraph, 'which epics are most at risk right now?');
+    expect(result.understood).toBe(false);
+    expect(result.answer).toContain('could not map');
+  });
+
+  it('ranks did-you-mean suggestions: impact wording surfaces the impact example first', () => {
+    const result = answerQuery(sampleGraph, 'What breaks if the epic changes?');
+    expect(result.understood).toBe(false);
+    expect(result.suggestions?.[0]).toBe('What breaks if the Payments reliability epic changes?');
+  });
+
+  it('ranks did-you-mean suggestions: an unknown person surfaces the person questions first', () => {
+    const result = answerQuery(sampleGraph, 'What is the risk around Zed?');
+    expect(result.understood).toBe(false);
+    expect(result.suggestions?.[0]).toBe('What is the risk around Alex Rivera?');
+  });
+
+  it('keeps suggestions deterministic: the same miss suggests the same order', () => {
+    const a = answerQuery(sampleGraph, 'what breaks if the epic changes?');
+    const b = answerQuery(sampleGraph, 'what breaks if the epic changes?');
+    expect(a.suggestions).toEqual(b.suggestions);
+  });
+
+  it('returns byte-identical answers on repeated calls (cache-transparent determinism)', () => {
+    for (const q of [
+      'What are the biggest knowledge risks right now?',
+      'What is the risk around Alex Rivera?',
+      'What breaks if Alex leaves?',
+      'Give me an overview of the organization',
+    ]) {
+      expect(JSON.stringify(answerQuery(sampleGraph, q)), q).toBe(JSON.stringify(answerQuery(sampleGraph, q)));
+    }
+  });
+});

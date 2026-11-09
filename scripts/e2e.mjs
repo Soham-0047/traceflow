@@ -14,6 +14,7 @@
  *  9. check gate      the bundled CLI as a subprocess: exit codes 0 / 1 / 2
  * 10. performance     a synthetic 7k-record org inside CI-safe budgets
  * 11. efficiency      the labeled NLU corpus: measured understanding, gated >= 88%
+ * 12. query latency   per-question budgets on the 7k org: cold, warm, cache effect
  *
  * Run after `npm run build` (the harness loads the built dists, not the
  * TypeScript sources): `npm run e2e`.
@@ -299,7 +300,13 @@ stages.push(stage('5. answers: eight intents, evidence on every answer, honest m
   assert(!miss.understood && miss.suggestions.length > 0, 'a nonsense question must fail honestly with suggestions');
   const noEntity = answerQuery(sampleGraph, 'What breaks if the epic changes?');
   assert(!noEntity.understood && noEntity.suggestions.length === 8, 'an impact question naming no epic must fail honestly with 8 suggestions');
-  return `${cases.length} intents verified, 2 honest misses`;
+  // A command names a person; it must be refused, not answered with a risk profile.
+  const command = answerQuery(sampleGraph, 'book a meeting with alex');
+  assert(!command.understood && command.evidence.length === 0, 'a scheduling command must be refused honestly');
+  // And the plural-epic ranking question refuses instead of guessing the people ranking.
+  const epicRanking = answerQuery(sampleGraph, 'which epics are most at risk right now?');
+  assert(!epicRanking.understood, 'an epic-ranking question must not be answered with the people ranking');
+  return `${cases.length} intents verified, 4 honest misses`;
 }));
 
 stages.push(stage('6. grounding: faithful paraphrases pass, inventions fall back', async () => {
@@ -460,7 +467,7 @@ stages.push(stage('11. efficiency: the labeled NLU corpus, measured and gated', 
     report.efficiency >= 0.88,
     `answer-layer efficiency ${(report.efficiency * 100).toFixed(1)}% is below the 88% floor`,
   );
-  assert(report.total >= 140, `corpus too small: ${report.total} cases`);
+  assert(report.total >= 170, `corpus too small: ${report.total} cases`);
   assert(
     report.refusals.refused === report.refusals.total,
     `honest-refusal regression: ${report.refusals.refused}/${report.refusals.total}`,
@@ -473,6 +480,92 @@ stages.push(stage('11. efficiency: the labeled NLU corpus, measured and gated', 
     );
   }
   return formatEvalSummary(report);
+}));
+
+/* ------------------------------------------------------------------ */
+
+stages.push(stage('12. query latency: per-question budgets on the 7k org', async () => {
+  // Same synthetic org as stage 10 (rebuilt locally so the stages stay
+  // independent), but this time the budget is per QUESTION, not per
+  // analysis: the answer layer must stay interactive even on a 7k-record
+  // org. Cold includes the first ranking (index + matcher index + all 250
+  // risk reports); warm is steady-state chat traffic, where the per-graph
+  // report memo and the shared matcher index do their work.
+  const people = Array.from({ length: 250 }, (_, i) => ({ id: `acc-${i}`, name: `Person ${i}` }));
+  const workItems = [];
+  for (let e = 0; e < 250; e++) {
+    workItems.push({ ref: { source: 'jira', id: `EP-${e}`, title: `Epic ${e}` }, type: 'epic', assigneeId: `acc-${e % 250}`, status: 'open' });
+    for (let c = 0; c < 11; c++) {
+      const i = e * 11 + c;
+      workItems.push({
+        ref: { source: 'jira', id: `W-${i}`, title: `Work ${i}` },
+        type: c % 3 === 0 ? 'bug' : 'story',
+        assigneeId: `acc-${i % 250}`,
+        status: i % 4 === 0 ? 'done' : 'open',
+        epicId: `EP-${e}`,
+        linkedPageIds: [`pg-${i % 3000}`],
+        linkedPullRequestIds: i % 5 === 0 ? [`pr-${i % 600}`] : undefined,
+      });
+    }
+  }
+  const pages = Array.from({ length: 3000 }, (_, i) => ({
+    ref: { source: 'confluence', id: `pg-${i}`, title: i % 7 === 0 ? `Decision: page ${i}` : `Page ${i}` },
+    contributorIds: i % 3 === 0 ? [`acc-${i % 250}`] : [`acc-${i % 250}`, `acc-${(i + 1) % 250}`],
+  }));
+  const pullRequests = Array.from({ length: 600 }, (_, i) => ({
+    ref: { source: 'bitbucket', id: `pr-${i}`, title: `PR ${i}` },
+    authorId: `acc-${i % 250}`,
+    state: i % 3 === 0 ? 'merged' : 'open',
+    reviewerIds: [`acc-${(i + 7) % 250}`],
+  }));
+  const decisions = pages
+    .filter((p) => p.ref.title.startsWith('Decision:'))
+    .slice(0, 300)
+    .map((p, i) => ({
+      ref: p.ref,
+      ownerId: `acc-${i % 250}`,
+      status: ['proposed', 'approved', 'superseded'][i % 3],
+      pendingApproverIds: i % 2 === 0 ? [`acc-${(i + 3) % 250}`] : [],
+      linkedWorkItemIds: [`W-${i * 2}`],
+    }));
+  const graph = { people, workItems, pages, pullRequests, decisions };
+
+  const battery = [
+    'What are the biggest knowledge risks right now?',
+    'What is the risk around Person 7?',
+    'What breaks if Person 12 leaves?',
+    'Trace the epic EP-3',
+    'What breaks if the Epic 42 epic changes?',
+    'What is the status of the page 7 decision?',
+    'What happens if the page 21 decision changes?',
+    'Give me an overview of the organization',
+    'what is the weather on mars?',
+    'who is our most critical person?',
+  ];
+
+  const t0 = performance.now();
+  for (const q of battery) {
+    const result = answerQuery(graph, q);
+    assert(result.understood === true || result.suggestions.length > 0, `query must answer or refuse: ${q}`);
+  }
+  const cold = performance.now() - t0;
+
+  const t1 = performance.now();
+  const WARM_PASSES = 5;
+  for (let r = 0; r < WARM_PASSES; r++) for (const q of battery) answerQuery(graph, q);
+  const warm = (performance.now() - t1) / WARM_PASSES;
+
+  // Determinism must survive the caches: repeated warm answers are identical.
+  assert(
+    JSON.stringify(answerQuery(graph, 'What are the biggest knowledge risks right now?')) ===
+      JSON.stringify(answerQuery(graph, 'What are the biggest knowledge risks right now?')),
+    'warm repeat answers must be byte-identical',
+  );
+
+  assert(cold < 2000, `cold battery too slow: ${cold.toFixed(0)}ms (budget 2000ms)`);
+  assert(warm < 600, `warm battery too slow: ${warm.toFixed(0)}ms (budget 600ms)`);
+  assert(warm < cold, `caches must engage: warm ${warm.toFixed(0)}ms vs cold ${cold.toFixed(0)}ms`);
+  return `cold ${cold.toFixed(0)}ms, warm ${warm.toFixed(0)}ms per 10 questions (${(warm / 10).toFixed(1)}ms each), ${(cold / warm).toFixed(1)}x cache effect`;
 }));
 
 /* ------------------------------------------------------------------ */

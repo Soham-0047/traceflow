@@ -133,3 +133,30 @@ describe('resolvers (tool-surface API)', () => {
     expect(() => resolveDecisionId(sampleGraph, 'nope')).toThrow(/No decision matches/);
   });
 });
+
+describe('matcher index cache (session 9)', () => {
+  it('returns identical results on repeated calls over the same graph', () => {
+    const questions = [
+      'What is the risk around Alex Rivera?',
+      'trace the auth hardening epic',
+      'status of the idempotency decision?',
+      'who is the bottleneck on the payments epic?',
+    ];
+    for (const q of questions) {
+      expect(JSON.stringify(matchPerson(sampleGraph, q)), q).toBe(JSON.stringify(matchPerson(sampleGraph, q)));
+      expect(JSON.stringify(matchEpic(sampleGraph, q)), q).toBe(JSON.stringify(matchEpic(sampleGraph, q)));
+      expect(JSON.stringify(matchDecision(sampleGraph, q)), q).toBe(JSON.stringify(matchDecision(sampleGraph, q)));
+    }
+  });
+
+  it('interleaved calls do not corrupt the cached token structures', () => {
+    // Warm the cache with a first question, then confirm a different
+    // question still matches correctly (cache holds all records, not the
+    // last question's leftovers).
+    matchEpic(sampleGraph, 'trace pay-1');
+    expect(matchEpic(sampleGraph, 'What is behind the Onboarding revamp epic?').epicId).toBe('ONB-1');
+    matchDecision(sampleGraph, 'status of decision d3?');
+    expect(matchDecision(sampleGraph, 'what happened with the token format decision?').decisionId).toBe('d2');
+    expect(matchPerson(sampleGraph, 'how much risk does sam chen carry?').person?.id).toBe('sam');
+  });
+});

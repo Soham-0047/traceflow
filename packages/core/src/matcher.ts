@@ -29,6 +29,72 @@ export const AMBIGUITY_MARGIN = 0.1;
 /** Candidates must score at least this to be considered at all. */
 const MIN_SCORE = 0.55;
 
+/* ------------------------------------------------------------------ *
+ * The shared matcher index: the token structures every question needs —
+ * name-token holders for people, title tokens and distinctive-token sets
+ * for epics and decisions — computed once per graph and reused, exactly
+ * like the engine's GraphIndex. Before this cache, every question
+ * re-tokenized every record title and re-counted distinctiveness across
+ * all of them; on a 250-epic org that was the bulk of the per-question
+ * matcher cost. Graphs are immutable by contract, so the cached structures
+ * can never drift from the data.
+ * ------------------------------------------------------------------ */
+
+interface RecordTokens {
+  id: string;
+  titleTokens: string[];
+  titleLower: string;
+}
+
+interface MatcherIndex {
+  /** Each person-name content token -> the people sharing it (distinctiveness). */
+  personTokenHolders: Map<string, Set<Person>>;
+  epicRecords: RecordTokens[];
+  epicDistinctive: Set<string>[];
+  decisionRecords: RecordTokens[];
+  decisionDistinctive: Set<string>[];
+}
+
+const MATCHER_CACHE = new WeakMap<OrgGraph, MatcherIndex>();
+
+function buildMatcherIndex(graph: OrgGraph): MatcherIndex {
+  const personTokenHolders = new Map<string, Set<Person>>();
+  for (const person of graph.people) {
+    for (const token of personNameTokens(person)) {
+      const holders = personTokenHolders.get(token) ?? new Set<Person>();
+      holders.add(person);
+      personTokenHolders.set(token, holders);
+    }
+  }
+
+  const epicRecords = getIndex(graph).epics.map((epic) => ({
+    id: epic.ref.id,
+    titleTokens: titleTokens(epic.ref.title),
+    titleLower: normalize(epic.ref.title),
+  }));
+  const decisionRecords = graph.decisions.map((decision: Decision) => ({
+    id: decision.ref.id,
+    titleTokens: titleTokens(decision.ref.title),
+    titleLower: normalize(decision.ref.title.replace(/^decision:\s*/i, '')),
+  }));
+
+  return {
+    personTokenHolders,
+    epicRecords,
+    epicDistinctive: distinctiveTokens(epicRecords.map((r) => r.titleTokens)),
+    decisionRecords,
+    decisionDistinctive: distinctiveTokens(decisionRecords.map((r) => r.titleTokens)),
+  };
+}
+
+function getMatcherIndex(graph: OrgGraph): MatcherIndex {
+  const cached = MATCHER_CACHE.get(graph);
+  if (cached) return cached;
+  const index = buildMatcherIndex(graph);
+  MATCHER_CACHE.set(graph, index);
+  return index;
+}
+
 function rank<T>(
   candidates: ScoredCandidate<T>[],
   keyOf: (item: T) => string,
@@ -113,14 +179,7 @@ export function matchPerson(graph: OrgGraph, question: string): PersonMatch {
   const words = new Set(rawWords(q));
 
   // Uniqueness of each name token across people, for the distinctive lane.
-  const tokenHolders = new Map<string, Set<Person>>();
-  for (const person of graph.people) {
-    for (const token of personNameTokens(person)) {
-      const holders = tokenHolders.get(token) ?? new Set<Person>();
-      holders.add(person);
-      tokenHolders.set(token, holders);
-    }
-  }
+  const tokenHolders = getMatcherIndex(graph).personTokenHolders;
 
   const scored: ScoredCandidate<Person>[] = [];
   for (const person of graph.people) {
@@ -268,7 +327,6 @@ export interface RecordMatchOptions {
 }
 
 export function matchEpic(graph: OrgGraph, question: string, options: RecordMatchOptions = {}): EpicMatch {
-  const index = getIndex(graph);
   const q = question.trim();
   const lower = normalize(q);
   const qTokens = tokens(q);
@@ -276,12 +334,9 @@ export function matchEpic(graph: OrgGraph, question: string, options: RecordMatc
   const hasDomainWord =
     options.assumeDomain === true || qTokens.some((t) => EPIC_DOMAIN_WORDS.has(t));
 
-  const records = index.epics.map((epic) => ({
-    id: epic.ref.id,
-    titleTokens: titleTokens(epic.ref.title),
-    titleLower: normalize(epic.ref.title),
-  }));
-  const distinctive = distinctiveTokens(records.map((r) => r.titleTokens));
+  const matcherIndex = getMatcherIndex(graph);
+  const records = matcherIndex.epicRecords;
+  const distinctive = matcherIndex.epicDistinctive;
 
   const scored: ScoredCandidate<string>[] = [];
   records.forEach((record, i) => {
@@ -317,12 +372,9 @@ export function matchDecision(graph: OrgGraph, question: string, options: Record
   const hasDomainWord =
     options.assumeDomain === true || qTokens.some((t) => DECISION_DOMAIN_WORDS.has(t));
 
-  const records = graph.decisions.map((decision: Decision) => ({
-    id: decision.ref.id,
-    titleTokens: titleTokens(decision.ref.title),
-    titleLower: normalize(decision.ref.title.replace(/^decision:\s*/i, '')),
-  }));
-  const distinctive = distinctiveTokens(records.map((r) => r.titleTokens));
+  const matcherIndex = getMatcherIndex(graph);
+  const records = matcherIndex.decisionRecords;
+  const distinctive = matcherIndex.decisionDistinctive;
 
   const scored: ScoredCandidate<string>[] = [];
   records.forEach((record, i) => {

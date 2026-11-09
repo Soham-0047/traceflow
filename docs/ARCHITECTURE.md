@@ -88,14 +88,17 @@ dependency-free algorithm modules in `packages/core`, and their quality is a
 | Module | What it does | Key ideas |
 | --- | --- | --- |
 | `text.ts` | string primitives | Damerau-Levenshtein (optimal string alignment) with an early-exit bound; length-aware typo budgets (3-char words get no budget — "sam" vs "sat" are different words); token-set similarity that survives reordering | 
-| `matcher.ts` | WHICH entity (person, epic, decision) | fixed-score lanes (exact id 1.00 → full name 0.95 → all tokens typo-tolerant 0.90 → bare id word 0.80 → distinctive token 0.75); candidates ranked by (score desc, id asc) for determinism; ties within 0.10 are **ambiguous, never guessed**; a single distinctive title token only anchors a question when a domain word is present ("trace the auth epic" matches, "the payments service" does not) |
-| `intent.ts` | WHAT is asked | weighted word signals per intent (strong 3 / medium 2 / weak 1); entity-first arbitration — the matched entity decides the subject, the scores decide the shape; past participles ("is superseded") are states, not change hypotheses, so "when was X superseded" traces instead of exploding into impact |
+| `matcher.ts` | WHICH entity (person, epic, decision) | fixed-score lanes (exact id 1.00 → full name 0.95 → all tokens typo-tolerant 0.90 → bare id word 0.80 → distinctive token 0.75); candidates ranked by (score desc, id asc) for determinism; ties within 0.10 are **ambiguous, never guessed**; a single distinctive title token only anchors a question when a domain word is present ("trace the auth epic" matches, "the payments service" does not); the token structures (name-token holders, title tokens, distinctive sets) are computed once per graph in a shared matcher index, like the engine's `GraphIndex` |
+| `intent.ts` | WHAT is asked | weighted word signals per intent (strong 3 / medium 2 / weak 1); entity-first arbitration — the matched entity decides the subject, the scores decide the shape; past participles ("is superseded") are states, not change hypotheses, so "when was X superseded" traces instead of exploding into impact; the risk lexicon covers the synonym families people actually use (single point of failure, irreplaceable, institutional knowledge, most critical person, succession plan, bus factor, highest-impact), and impact wording includes consequences-of, bottleneck and damage |
+| `query.ts` | arbitration + honesty guards | the answer layer that combines matcher + intents into the eight intents; a **command guard** refuses scheduling/messaging requests before entity matching ("book a meeting with priya" must not produce her risk profile); a **plural-epic guard** refuses "which epics are most at risk?" instead of guessing the people ranking; **did-you-mean** suggestions are ranked per miss by intent affinity, named entities and token similarity, deterministically; the person risk reports ride a per-graph, weights-keyed memo so a warm "top risks" or overview is a map lookup (measured: 7k-record org, ~1.6 ms per warm question, 3–5× cache effect) |
 
-**The efficiency metric.** `eval.ts` carries a 146-case labeled corpus — realistic
+**The efficiency metric.** `eval.ts` carries a 178-case labeled corpus — realistic
 phrasings per intent (typos, reordered titles, partial names, indirect language),
-unanswerable-but-plausible questions that must be refused honestly, and nine
-documented synonym gaps ("most critical person", "single point of failure",
-"irreplaceable"…) labeled with ideal behavior the engine does not reach yet.
+unanswerable-but-plausible questions that must be refused honestly (including
+scheduling/messaging commands, which a person-naming engine would otherwise
+"answer" with a risk profile), and nine documented frontier gaps labeled with
+ideal behavior the engine does not reach yet ("weakest link", "most dangerous
+liability", "out sick", "knowledge coverage", decide-verb decision questions).
 `evaluateAnswerLayer()` runs every case end to end (question in → full
 `AnswerResult` out → intent AND target entity verified) and computes
 
@@ -103,12 +106,14 @@ documented synonym gaps ("most critical person", "single point of failure",
 efficiency = cases handled correctly / total cases
 ```
 
-Measured: **93.8% (137/146)** — inside the tuned 88–95% band. The honest-miss
-group is 22/22: the engine never invents an answer to a question it cannot map.
+Measured: **94.9% (169/178)** — inside the tuned 88–95% band. The honest-miss
+group is 31/31: the engine never invents an answer to a question it cannot map.
 The number is gated twice: `eval.test.ts` fails below 88%, and e2e stage 11
 prints the summary and enforces the same floor. Closing a documented gap raises
 the number; the floor catches regressions when matcher or intent changes break
-real phrasings.
+real phrasings. Session 9 closed all nine session-8 gaps, then grew the corpus
+by 32 verified cases and documented the next nine — capability up, number
+honestly in band.
 
 The same matchers back the tool surfaces: the MCP resolvers (and any future
 connector) resolve `person: "Alexs Rivera"`, `epic: "pay-1"` or
@@ -120,7 +125,7 @@ reference, not prose.
 
 `npm run e2e` (`scripts/e2e.mjs`, in CI after build) walks every pipeline stage with real boundaries:
 
-1. fixtures through the strict pipeline; 2. a corrupt export quarantined (best-effort) and refused (strict) with issue paths; 3. shuffled input → byte-identical fingerprint, analysis and answers; 4. the sample story's known facts, now including epic and decision impact; 5. eight answer intents + two honest misses (nonsense, and an impact question naming no entity); 6. grounding accept/reject/fallback over both a person-risk and an epic-impact answer; 7. nine MCP tools over `InMemoryTransport`; 8. the **built MCP CLI as a subprocess** answering a real JSON-RPC handshake and two `tools/call`s over stdio; 9. the **bundled check CLI as a subprocess** returning exit codes 0/1/2 on pass/fail/data-error cases; 10. a synthetic 7,150-record org inside CI-safe performance budgets; 11. the **labeled NLU corpus**: 146 questions answered end to end, efficiency measured (93.8%) and gated at the 88% floor, honest refusals 22/22.
+1. fixtures through the strict pipeline; 2. a corrupt export quarantined (best-effort) and refused (strict) with issue paths; 3. shuffled input → byte-identical fingerprint, analysis and answers; 4. the sample story's known facts, now including epic and decision impact; 5. eight answer intents + four honest misses (nonsense, an impact question naming no entity, a scheduling command, an epic-ranking question); 6. grounding accept/reject/fallback over both a person-risk and an epic-impact answer; 7. nine MCP tools over `InMemoryTransport`; 8. the **built MCP CLI as a subprocess** answering a real JSON-RPC handshake and two `tools/call`s over stdio; 9. the **bundled check CLI as a subprocess** returning exit codes 0/1/2 on pass/fail/data-error cases; 10. a synthetic 7,150-record org inside CI-safe performance budgets; 11. the **labeled NLU corpus**: 178 questions answered end to end, efficiency measured (94.9%) and gated at the 88% floor, honest refusals 31/31; 12. **per-question latency budgets** on the same 7k org — a ten-question battery cold and warm, with the warm pass required to beat cold (the caches must engage) and byte-identical repeat answers (measured locally: ~51 ms cold, ~16 ms warm, 3.3× cache effect).
 
 ## Package map
 

@@ -475,19 +475,6 @@ function runPipelineOnJson(text, options = {}) {
   };
 }
 
-// ../core/src/query.ts
-var ANSWERABLE_QUESTIONS = [
-  { intent: "overview", example: "Give me an overview of the organization", description: "Record counts, top risks, epics by gaps, coverage caveats" },
-  { intent: "top-risks", example: "What are the biggest knowledge risks right now?", description: "Everyone ranked by knowledge-risk score" },
-  { intent: "person-risk", example: "What is the risk around Alex Rivera?", description: "One person: findings, points, suggested actions, caveats" },
-  { intent: "person-impact", example: "What breaks if Alex leaves?", description: "The blast radius of one person: epics, work, pages, decisions, changes" },
-  { intent: "epic-lineage", example: "Trace the epic PAY-1", description: "Intent, plan, work and code records behind an epic, plus gaps" },
-  { intent: "epic-impact", example: "What breaks if the Payments reliability epic changes?", description: "The blast radius of a changed epic: open work, stale specs, unreviewed changes, who needs to know" },
-  { intent: "decision-trace", example: "What is the status of the idempotency decision?", description: "One decision: linked work, people and roles, findings" },
-  { intent: "decision-impact", example: "What happens if the idempotency key scope decision changes?", description: "The blast radius of a changed decision: outdated work, outdated changes, who needs to know" }
-];
-var SUGGESTIONS = ANSWERABLE_QUESTIONS.map((q) => q.example);
-
 // ../core/src/eval.ts
 var EVAL_CORPUS = [
   /* ---------------- top risks ---------------- */
@@ -652,7 +639,57 @@ var EVAL_CORPUS_HARD = [
   { question: "what's the damage if priya quits?", expect: { understood: true, intent: "person-impact", personId: "priya" } },
   { question: "who is the bottleneck on the auth epic?", expect: { understood: true, intent: "epic-impact", epicId: "AUTH-1" } },
   { question: "who is irreplaceable on this team?", expect: { understood: true, intent: "top-risks" } },
-  { question: "who holds the most institutional knowledge?", expect: { understood: true, intent: "top-risks" } }
+  { question: "who holds the most institutional knowledge?", expect: { understood: true, intent: "top-risks" } },
+  /* ------- session 9: regression cases for the closed gaps and new lanes ------- */
+  // Consequence, bottleneck and damage wording now score as impact.
+  { question: "what are the consequences of sam resigning?", expect: { understood: true, intent: "person-impact", personId: "sam" } },
+  { question: "who is the bottleneck on the payments epic?", expect: { understood: true, intent: "epic-impact", epicId: "PAY-1" } },
+  { question: "what's the damage of losing sam?", expect: { understood: true, intent: "person-impact", personId: "sam" } },
+  // Risk synonyms: SPOF, irreplaceable, institutional knowledge, bus factor.
+  { question: "who is our single point of failure?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is irreplaceable here?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who holds the most institutional knowledge on the team?", expect: { understood: true, intent: "top-risks" } },
+  { question: "how do we lower our bus factor?", expect: { understood: true, intent: "top-risks" } },
+  // A SPOF question naming one person is that person's risk profile, not
+  // the ranking; a capitalized phrase mid-sentence must not read as a name.
+  { question: "is priya a single point of failure?", expect: { understood: true, intent: "person-risk", personId: "priya" } },
+  { question: "Who is our Single Point of Failure?", expect: { understood: true, intent: "top-risks" } },
+  // Indirect impact phrasings.
+  { question: "do we have a succession plan for alex?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "who should alex hand off to before he leaves?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "which epics would suffer if priya left?", expect: { understood: true, intent: "person-impact", personId: "priya" } },
+  { question: "what happens to tribal knowledge if alex leaves?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  // Decision slang: "made the call on X" rides the title-in-question lane.
+  { question: "who made the call on the token format?", expect: { understood: true, intent: "decision-trace", decisionId: "d2" } },
+  /* ------- session 9: commands are refused, not answered ------- */
+  // A request to schedule or send something names a person; without the
+  // command guard the engine would answer that person's risk profile.
+  { question: "can you schedule a 1:1 with alex?", expect: { understood: false } },
+  { question: "book a meeting with priya nair", expect: { understood: false } },
+  { question: "please ping sam chen about the handover", expect: { understood: false } },
+  { question: "can you message alex?", expect: { understood: false } },
+  { question: "send an email to priya about the offsite", expect: { understood: false } },
+  /* ------- session 9: more unanswerable-but-plausible, must refuse ------- */
+  // Topic-knowledge and workload questions: the records cannot rank who
+  // "knows" a system or who is busiest, so the engine must say so.
+  { question: "who has the most context on the payments system?", expect: { understood: false } },
+  { question: "who knows the most about the auth service?", expect: { understood: false } },
+  { question: "who is drowning in work right now?", expect: { understood: false } },
+  // Plural-epic ranking: the engine cannot rank epics directly, and
+  // answering with the people ranking would be confidently wrong.
+  { question: "which epics are most at risk right now?", expect: { understood: false } },
+  /* ------- session 9: the next documented frontier (open gaps) ------- */
+  // Ideal behavior an ideal engine would have; the current one misses —
+  // this is the honest headroom that keeps the measured number in band.
+  { question: "who is our weakest link?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is our most dangerous liability?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who's carrying the most context these days?", expect: { understood: true, intent: "top-risks" } },
+  { question: "how exposed are we if sam is out sick?", expect: { understood: true, intent: "person-impact", personId: "sam" } },
+  { question: "what if we lost alex tomorrow?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "what is our knowledge coverage?", expect: { understood: true, intent: "overview" } },
+  { question: "what did the team decide about the retry mechanism?", expect: { understood: true, intent: "decision-trace", decisionId: "d1" } },
+  { question: "what did we decide on retries?", expect: { understood: true, intent: "decision-trace", decisionId: "d1" } },
+  { question: "why did we move away from the queue approach?", expect: { understood: true, intent: "decision-trace", decisionId: "d1" } }
 ];
 var EVAL_CORPUS_ALL = [...EVAL_CORPUS, ...EVAL_CORPUS_HARD];
 

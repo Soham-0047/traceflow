@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_WEIGHTS, assessPersonRisk, levelFor, rankPeopleByRisk, sampleGraph } from '../src/index.js';
+import type { OrgGraph } from '../src/index.js';
 
 describe('assessPersonRisk', () => {
   const report = assessPersonRisk(sampleGraph, 'alex');
@@ -64,5 +65,36 @@ describe('rankPeopleByRisk', () => {
     const scores = ranked.map((r) => r.score);
     expect(scores).toEqual([...scores].sort((a, b) => b - a));
     expect(ranked).toHaveLength(sampleGraph.people.length);
+  });
+});
+
+describe('risk report memo (session 9)', () => {
+  it('returns the identical report on repeat calls', () => {
+    const first = assessPersonRisk(sampleGraph, 'alex');
+    const second = assessPersonRisk(sampleGraph, 'alex');
+    expect(second).toBe(first); // memo hit: same object, same content
+    expect(JSON.stringify(second)).toBe(JSON.stringify(assessPersonRisk(sampleGraph, 'alex')));
+  });
+
+  it('keys the memo by weights: different weights produce different reports', () => {
+    const first = assessPersonRisk(sampleGraph, 'alex');
+    const heavier = assessPersonRisk(sampleGraph, 'alex', { solePage: 10, openWork: 2, openPullRequest: 4, pendingDecision: 6 });
+    expect(heavier.score).toBeGreaterThan(first.score);
+    // Equal weights in a fresh object reuse the default-weight entry.
+    const again = assessPersonRisk(sampleGraph, 'alex', { solePage: 5, openWork: 2, openPullRequest: 4, pendingDecision: 6 });
+    expect(again.score).toBe(first.score);
+  });
+
+  it('rankings are identical across repeat calls and use the memo', () => {
+    const first = rankPeopleByRisk(sampleGraph);
+    const second = rankPeopleByRisk(sampleGraph);
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+    expect(first[0]?.personName).toBe('Alex Rivera');
+  });
+
+  it('structurally equal graphs produce equal reports (no cross-graph leakage)', () => {
+    const clone: OrgGraph = JSON.parse(JSON.stringify(sampleGraph));
+    expect(assessPersonRisk(clone, 'alex').score).toBe(assessPersonRisk(sampleGraph, 'alex').score);
+    expect(rankPeopleByRisk(clone)[0]?.personId).toBe(rankPeopleByRisk(sampleGraph)[0]?.personId);
   });
 });

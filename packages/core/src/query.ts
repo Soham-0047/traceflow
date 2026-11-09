@@ -20,8 +20,10 @@ import {
   scoreIntents,
   impactSignal,
   rankingSignal,
+  rankingStrong,
   arbitrateFreeQuestion,
 } from './intent.js';
+import { tokenSimilarity } from './text.js';
 
 /**
  * The deterministic answer layer: `answerQuery` turns a natural-language
@@ -91,7 +93,59 @@ export interface AnswerResult {
   suggestions?: string[];
 }
 
-const SUGGESTIONS = ANSWERABLE_QUESTIONS.map((q) => q.example);
+/* ------------------------------------------------------------------ *
+ * Command guard: a request to DO something is not a question about the
+ * connected records. "book a meeting with priya" names a person, so
+ * without this gate the engine would happily answer her risk profile —
+ * confidently wrong. The patterns are deliberately tight noun objects
+ * (book/schedule + a meeting word; send/write/draft + a message word)
+ * plus can/could-you and please openers with contact verbs: "send me the
+ * top risks" stays a ranking question, "send an email to priya" refuses.
+ * ------------------------------------------------------------------ */
+
+const COMMAND_PATTERNS: RegExp[] = [
+  /\b(?:book|schedule|reschedule)\s+(?:an?\s+|the\s+|my\s+|our\s+)?(?:meeting|meetings|1:1|one-on-one|1-1|sync|standup|stand-up|retro|retrospective|calendar|invite|invites|interview)\b/i,
+  /\b(?:send|write|draft|forward)\s+(?:an?\s+|the\s+|my\s+|our\s+)?(?:message|messages|email|e-mail|dm|reminder|memo|slack)\b/i,
+  /\b(?:can|could)\s+(?:you|we|i)\s+(?:ping|message|email|call|text|invite|remind|book|schedule)\b/i,
+  /\bplease\s+(?:ping|message|email|call|text|invite|remind|book|schedule)\b/i,
+];
+
+/** True when the input is a request to perform an action, not a question the engine can answer. */
+export function isCommandRequest(question: string): boolean {
+  return COMMAND_PATTERNS.some((re) => re.test(question));
+}
+
+/* ------------------------------------------------------------------ *
+ * Did-you-mean: rank the answerable questions by how close the user's
+ * wording is to each. A miss that names a person surfaces the person
+ * questions first; impact wording surfaces the blast-radius questions;
+ * otherwise token-set similarity decides. Deterministic: ties keep the
+ * catalog order, so the same miss always suggests the same order.
+ * ------------------------------------------------------------------ */
+
+export interface SuggestionContext {
+  person?: boolean;
+  epic?: boolean;
+  decision?: boolean;
+}
+
+export function rankSuggestions(question: string, matched: SuggestionContext = {}): string[] {
+  const scores = scoreIntents(question);
+  const wantsImpact = impactSignal(scores);
+  const wantsRanking = rankingSignal(scores);
+  return ANSWERABLE_QUESTIONS.map((candidate, i) => {
+    let score = tokenSimilarity(question, candidate.example);
+    if (wantsImpact && candidate.intent.endsWith('-impact')) score += 1;
+    if (wantsRanking && candidate.intent === 'top-risks') score += 1;
+    if (scores.overview >= 2 && candidate.intent === 'overview') score += 1;
+    if (matched.person && candidate.intent.startsWith('person-')) score += 1.5;
+    if (matched.epic && candidate.intent.startsWith('epic-')) score += 1.5;
+    if (matched.decision && candidate.intent.startsWith('decision-')) score += 1.5;
+    return { example: candidate.example, i, score };
+  })
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .map((s) => s.example);
+}
 
 const list = (items: string[]): string =>
   items.length === 0 ? 'none' : items.length === 1 ? items[0]! : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]!}`;
@@ -245,6 +299,31 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
   const q = question.trim();
   const base = { question: q };
 
+  // The honest-miss payload. Suggestions are passed in explicitly: the
+  // command guard ranks by wording alone, later misses rank by wording plus
+  // the entities the question managed to name, and the generic miss keeps
+  // the catalog order (nothing to rank by, and a stable order scans better).
+  const notUnderstood = (answer: string, suggestions: string[]): AnswerResult => ({
+    ...base,
+    intent: 'overview',
+    understood: false,
+    answer,
+    data: null,
+    evidence: [],
+    caveats: [],
+    suggestions,
+  });
+
+  // A command ("book a meeting with alex") is refused before any entity
+  // matching: naming a person inside a scheduling request must not produce
+  // that person's risk profile.
+  if (isCommandRequest(q)) {
+    return notUnderstood(
+      'This looks like a request to schedule or send something, which the engine cannot do. It answers questions about people, risk, impact, epics and decisions from the connected records.',
+      rankSuggestions(q),
+    );
+  }
+
   const personMatch: PersonMatch = matchPerson(graph, q);
   const epicMatch = matchEpic(graph, q);
   const decisionMatch = matchDecision(graph, q);
@@ -253,30 +332,37 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
   const wantsImpact = impactSignal(scores);
   const wantsTop = rankingSignal(scores);
 
-  const notUnderstood = (answer: string, extraSuggestions?: string[]): AnswerResult => ({
-    ...base,
-    intent: 'overview',
-    understood: false,
-    answer,
-    data: null,
-    evidence: [],
-    caveats: [],
-    suggestions: extraSuggestions ? [...extraSuggestions, ...SUGGESTIONS] : SUGGESTIONS,
-  });
+  // Which entities the question managed to name — drives did-you-mean order.
+  // An unmatched mention ("risk around Zed") still names a person shape, so
+  // it lifts the person questions: the closest re-ask is a person question.
+  const named: SuggestionContext = {
+    person:
+      personMatch.person !== undefined ||
+      personMatch.ambiguous !== undefined ||
+      personMatch.unmatchedMention !== undefined,
+    epic: epicMatch.epicId !== undefined || epicMatch.ambiguous === true,
+    decision: decisionMatch.decisionId !== undefined || decisionMatch.ambiguous === true,
+  };
+  const rankedSuggestions = rankSuggestions(q, named);
 
   // Ambiguous person mention: ask which one, unless an epic or decision was
   // matched (then the person word was probably part of the title).
   if (!personMatch.person && personMatch.ambiguous && !epicMatch.epicId && !decisionMatch.decisionId) {
     return notUnderstood(
       `That could mean ${list(personMatch.ambiguous.map((p) => p.name))}. Please use the full name or the id (${personMatch.ambiguous.map((p) => p.id).join(', ')}).`,
+      rankedSuggestions,
     );
   }
   // A name-like mention that matched nobody: say so instead of silently
   // answering a different question (ranking, overview) the user did not ask.
+  // Exception: a strongly-scored ranking question ("Who is our Single Point
+  // of Failure?") may capitalize a phrase mid-sentence — that is emphasis,
+  // not a person, so the ranking wins over the name heuristic.
   if (
     !personMatch.person &&
     !personMatch.ambiguous &&
     personMatch.unmatchedMention &&
+    !rankingStrong(scores) &&
     !epicMatch.epicId &&
     !decisionMatch.decisionId
   ) {
@@ -285,13 +371,14 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
       graph.people.length === 0
         ? 'There are no people in the connected records, so no person risk can be assessed.'
         : `No person matching '${personMatch.unmatchedMention}' exists in the connected data. Known people: ${known}.`,
+      rankedSuggestions,
     );
   }
   if (epicMatch.ambiguous && scores.epic >= 2) {
-    return notUnderstood('That matches more than one epic. Please use the epic key, for example PAY-1.');
+    return notUnderstood('That matches more than one epic. Please use the epic key, for example PAY-1.', rankedSuggestions);
   }
   if (decisionMatch.ambiguous && scores.decision >= 2) {
-    return notUnderstood('That matches more than one decision. Please use the exact title or id.');
+    return notUnderstood('That matches more than one decision. Please use the exact title or id.', rankedSuggestions);
   }
 
   const person = personMatch.person;
@@ -409,5 +496,9 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
 
   return notUnderstood(
     'The engine could not map that question to the connected records. It answers questions about people, risk, impact, epics and decisions — and says so when it cannot.',
+    // Ranked like the other misses: wording signals (impact, ranking,
+    // overview) and any named entities lift the closest examples first, and
+    // with no signal at all the stable sort keeps the catalog order.
+    rankedSuggestions,
   );
 }

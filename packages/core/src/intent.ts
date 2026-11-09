@@ -38,6 +38,13 @@ const IMPACT: Signal[] = [
   { re: /\b(?:before|when)\s+(?:he|she|they)\s+(?:leaves?|left|goes|quit|quits|resigns?)\b/i, weight: 3 },
   { re: /\b(?:hit by a bus|bus factor)\b/i, weight: 3 },
   { re: /\b(?:offboard(?:ing|s)?|handover|hand-off|handoff|succession)\b/i, weight: 3 },
+  // Consequence wording: "what are the consequences of priya leaving?" asks
+  // for the blast radius without any if-then verb pattern firing.
+  { re: /\bconsequences?\b/i, weight: 3 },
+  // A bottleneck question is a blast-radius question in disguise: "who is
+  // the bottleneck on the auth epic?" wants the epic's impact report.
+  { re: /\bbottleneck\b/i, weight: 3 },
+  { re: /\bdamage\b/i, weight: 2 },
   { re: /\bimpact\b/i, weight: 2 },
   { re: /\b(?:without|unavailable|loses?|losing)\b/i, weight: 2 },
   { re: /\b(?:breaks?|stalls?|blocked|orphaned?)\b/i, weight: 2 },
@@ -56,6 +63,18 @@ const TOP_RISKS: Signal[] = [
   { re: /\b(?:most|more)\s+at\s+risk\b/i, weight: 3 },
   { re: /\briskiest\b/i, weight: 3 },
   { re: /\bbus factor\b/i, weight: 3 },
+  // Risk synonyms from the corpus frontier (session 8 documented, session 9
+  // closed): each of these asks for the risk ranking in different words.
+  { re: /\bsingle points? of failure\b/i, weight: 3 },
+  { re: /\birreplaceable\b/i, weight: 3 },
+  { re: /\binstitutional\s+knowledge\b/i, weight: 3 },
+  { re: /\b(?:most\s+)?critical\s+(?:person|people|member|teammate|employee|engineer)s?\b/i, weight: 3 },
+  { re: /\bsuccession\s+plan/i, weight: 3 },
+  // "what is the highest-impact thing we could lose?" — the superlative of
+  // impact over the whole org is the ranking question, not one blast radius.
+  // The hyphen form ("highest-impact") must fire too, so the separator class
+  // is [-\s]+, not \s+.
+  { re: /\b(?:most|highest|biggest|largest)[-\s]+impact\b/i, weight: 3 },
   { re: /\bat\s+risk\b/i, weight: 2 },
   { re: /\brisks?\b|\bexposure\b/i, weight: 2 },
   { re: /\brank(?:ed|ing|s)?\b/i, weight: 1 },
@@ -125,8 +144,16 @@ export const rankingStrong = (s: IntentScores): boolean => s.topRisks >= 3;
  * person, epic or decision maps to. `undefined` = not understood (the engine
  * then says so honestly, with suggestions). On a tie the ranking wins: risk
  * is the product's subject.
+ *
+ * The plural-epic guard: "which epics are most at risk right now?" scores as
+ * a ranking question, but what it asks for is an EPIC ranking — answering it
+ * with the people ranking would be confidently wrong, so it refuses (unless
+ * overview wording is present, which the org overview legitimately answers:
+ * it ranks epics by recorded gaps). This function only runs when no specific
+ * epic matched, so "the Payments reliability epic" questions never land here.
  */
 export function arbitrateFreeQuestion(s: IntentScores): 'top-risks' | 'overview' | undefined {
+  if (s.epic >= 2) return s.overview >= 2 ? 'overview' : undefined;
   if (rankingSignal(s) && s.topRisks >= s.overview) return 'top-risks';
   if (s.overview >= 2) return 'overview';
   return undefined;
