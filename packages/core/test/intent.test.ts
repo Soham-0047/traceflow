@@ -201,3 +201,50 @@ describe('scoreIntents — session 10 lexicon and wording expansion', () => {
     }
   });
 });
+
+describe('scoreIntents and arbitration — session 11 lexicon and wording expansion', () => {
+  it('scores the new ranking synonyms as strong ranking', () => {
+    for (const q of [
+      'who is our linchpin?',
+      'who are our key persons?',
+      'who is our most indispensable engineer?',
+      'who are the guardians of our tribal knowledge?',
+      'who is spread the thinnest across epics?',
+      'who do we never want to lose?',
+    ]) {
+      expect(rankingStrong(scoreIntents(q)), q).toBe(true);
+    }
+  });
+
+  it('keeps the new phrases tight', () => {
+    // The lose idiom carries "never"; "key" is only a ranking word with
+    // persons/people; "thin" needs the spread; a bare who-word is nothing.
+    expect(rankingSignal(scoreIntents('who do we want to lose?'))).toBe(false);
+    expect(rankingSignal(scoreIntents('who are our key engineers?'))).toBe(false);
+    expect(rankingSignal(scoreIntents('who is the thinnest person on the team?'))).toBe(false);
+    expect(scoreIntents('who let the dogs out?').who).toBe(1); // who present, nothing else
+    expect(scoreIntents('which epics are most at risk right now?').who).toBe(0);
+  });
+
+  it('scores fallout as consequence wording (strong impact)', () => {
+    expect(impactStrong(scoreIntents('what is the fallout of priya leaving?'))).toBe(true);
+    expect(impactStrong(scoreIntents('what is the fallout if sam quits?'))).toBe(true);
+  });
+
+  it('scores deprioritize forms as change actions, and only in the if-lane for -ed', () => {
+    // Action forms fire anywhere; the 'ed' state fires only inside an if.
+    expect(impactSignal(scoreIntents('what if we deprioritize the auth epic?'))).toBe(true);
+    expect(impactStrong(scoreIntents('what if the payments epic gets deprioritized?'))).toBe(true);
+    expect(impactSignal(scoreIntents('what happens if the auth epic is deprioritized?'))).toBe(true);
+    // State, no if-lane: "was deprioritized" alone must not read as a change.
+    expect(impactSignal(scoreIntents('the auth epic was deprioritized last quarter'))).toBe(false);
+  });
+
+  it('lets a who-question with a strong ranking signal escape the plural-epic guard', () => {
+    // "spread thinnest across epics" mentions epics as context; the people
+    // ranking is what is being asked for.
+    expect(arbitrateFreeQuestion(scoreIntents('who is spread the thinnest across epics?'))).toBe('top-risks');
+    // Without a who-subject the guard keeps refusing epic rankings.
+    expect(arbitrateFreeQuestion(scoreIntents('which epics are most at risk right now?'))).toBeUndefined();
+  });
+});

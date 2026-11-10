@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react';
 
-export type View = 'overview' | 'people' | 'impact' | 'epics' | 'decisions';
+export type View = 'overview' | 'ask' | 'people' | 'impact' | 'epics' | 'decisions';
 
 /**
  * What the impact view is scoped to. Persons keep the legacy single-segment
@@ -19,7 +19,11 @@ export interface Route {
   finding?: string;
 }
 
-const VIEWS: View[] = ['overview', 'people', 'impact', 'epics', 'decisions'];
+const VIEWS: View[] = ['overview', 'ask', 'people', 'impact', 'epics', 'decisions'];
+
+// NOTE: on the ask view, `id` carries the URL-encoded QUESTION, not a record
+// id (`#/ask/What%20breaks%20if%20Alex%20leaves%3F`). encodeURIComponent keeps
+// it single-segment (slashes encoded), so parseHash's generic branch handles it.
 
 export function parseHash(hash: string): Route {
   const parts = hash

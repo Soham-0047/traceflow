@@ -1,6 +1,7 @@
-import type { OrgGraph, PersonRiskReport, RecordRef, RiskWeights } from './types.js';
+import type { Decision, OrgGraph, PersonRiskReport, RecordRef, RiskWeights, WorkItem } from './types.js';
 import { assessPersonRisk, rankPeopleByRisk } from './risk.js';
 import { buildOverview, type OverviewReport } from './overview.js';
+import { getIndex } from './graph-index.js';
 import {
   personImpact,
   epicImpact,
@@ -149,6 +150,51 @@ export function rankSuggestions(question: string, matched: SuggestionContext = {
 
 const list = (items: string[]): string =>
   items.length === 0 ? 'none' : items.length === 1 ? items[0]! : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]!}`;
+
+/* ------------------------------------------------------------------ *
+ * Decision scope join (session 11): a decision question that names an
+ * epic's work but no decision title — "which decision is blocking the
+ * payments work?" The wording places the question in the decision domain,
+ * so instead of falling through to the epic's lineage (a different question
+ * than asked), the engine resolves the candidates through the recorded
+ * links — the SAME linkage traceDecision uses, so the trace and the join
+ * agree by construction: the decisions linked to that epic's open work
+ * whose status can block it (proposed with outstanding approvers, or
+ * superseded). Exactly one → trace it; several → name them and ask which;
+ * none → say so, informed. Deterministic: candidates in canonical id order.
+ * ------------------------------------------------------------------ */
+
+function decisionsBlockingEpicWork(graph: OrgGraph, epicId: string): Decision[] {
+  const index = getIndex(graph);
+  const candidates: Decision[] = [];
+  for (const decision of graph.decisions) {
+    if (decision.status !== 'proposed' && decision.status !== 'superseded') continue;
+    // The same linkage traceDecision uses, both directions: work whose remote
+    // links point at the decision page, plus work the decision names directly.
+    const linked = new Map<string, WorkItem>();
+    for (const item of index.workByLinkedPageId.get(decision.ref.id) ?? []) {
+      linked.set(item.ref.id, item);
+    }
+    for (const wid of decision.linkedWorkItemIds ?? []) {
+      const item = index.workById.get(wid);
+      if (item) linked.set(item.ref.id, item);
+    }
+    const blocks = [...linked.values()].some((w) => w.epicId === epicId && w.status === 'open');
+    if (blocks) candidates.push(decision);
+  }
+  return candidates.sort((a, b) => a.ref.id.localeCompare(b.ref.id));
+}
+
+function describeJoinedDecision(graph: OrgGraph, decision: Decision): string {
+  const index = getIndex(graph);
+  const title = decision.ref.title.replace(/^decision:\s*/i, '');
+  if (decision.status === 'superseded') return `${decision.ref.id} '${title}' (superseded)`;
+  const approvers = decision.pendingApproverIds
+    .map((id) => index.peopleById.get(id)?.name ?? id)
+    .join(', ');
+  const waiting = approvers.length > 0 ? `, waiting on ${approvers}` : '';
+  return `${decision.ref.id} '${title}' (proposed${waiting})`;
+}
 
 /* ------------------------------------------------------------------ *
  * Entity detection and intent scoring live in the in-house NLU:
@@ -409,6 +455,51 @@ export function answerQuery(graph: OrgGraph, question: string, weights?: RiskWei
       evidence: cap(report.findings.flatMap((f) => f.evidence)),
       caveats: report.caveats,
     };
+  }
+
+  // 2.5 Decision scope join: a decision question naming an epic's work but no
+  // decision title ("which decision is blocking the payments work?", "what did
+  // we decide about the payments work?"). Runs before the epic rules: the
+  // question is in the decision domain, so the epic's lineage or impact would
+  // answer a different question than the one asked. Skipped when impact or
+  // ranking wording is present — those route to the epic's blast radius, and
+  // a lexically matched decision always wins (checked above).
+  if (
+    !decisionMatch.decisionId &&
+    !decisionMatch.ambiguous &&
+    epicMatch.epicId &&
+    scores.decision >= 2 &&
+    !wantsImpact &&
+    !wantsTop
+  ) {
+    const epic = getIndex(graph).workById.get(epicMatch.epicId);
+    const epicName = epic ? `${epic.ref.title} (${epic.ref.id})` : epicMatch.epicId;
+    const candidates = decisionsBlockingEpicWork(graph, epicMatch.epicId);
+    if (candidates.length === 1) {
+      const report = traceDecision(graph, candidates[0]!.ref.id);
+      return {
+        ...base,
+        intent: 'decision-trace',
+        understood: true,
+        answer: renderDecision(report),
+        data: report,
+        evidence: cap([report.decision, ...report.linkedWork]),
+        caveats: report.caveats,
+      };
+    }
+    if (candidates.length > 1) {
+      return notUnderstood(
+        `That names more than one decision. ${candidates.length} decisions are proposed or superseded against work in ${epicName}: ` +
+          `${list(candidates.map((d) => describeJoinedDecision(graph, d)))}. ` +
+          `Name the decision you mean and the engine will trace it.`,
+        rankedSuggestions,
+      );
+    }
+    return notUnderstood(
+      `No decision is linked to work in ${epicName} in the connected records, so no decision can be blocking it. ` +
+        `If a decision exists, it is not linked to that work yet.`,
+      rankedSuggestions,
+    );
   }
 
   // 3. Epic impact: an epic was matched and the question is about what a change to it affects.

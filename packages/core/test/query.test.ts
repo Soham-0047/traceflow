@@ -236,3 +236,63 @@ describe('answerQuery — session 9: commands, synonyms, did-you-mean', () => {
     }
   });
 });
+
+describe('answerQuery — session 11: the decision scope join', () => {
+  it('traces the single blocking decision resolved through the recorded links', () => {
+    const result = answerQuery(sampleGraph, 'which decision is blocking the auth work?');
+    expect(result.understood).toBe(true);
+    expect(result.intent).toBe('decision-trace');
+    expect((result.data as { decision: { id: string } }).decision.id).toBe('d2');
+    // Evidence carries the decision and its linked work — no guessing.
+    expect(result.evidence.map((r) => r.id)).toContain('AUTH-4');
+  });
+
+  it('names both candidates when two decisions block the named work — never picks', () => {
+    // The payments work has TWO proposed decisions against it (d1 and d3);
+    // the honest answer lists them with statuses and asks which one.
+    const result = answerQuery(sampleGraph, 'which decision is blocking the payments work?');
+    expect(result.understood).toBe(false);
+    expect(result.answer).toContain('d1');
+    expect(result.answer).toContain('d3');
+    expect(result.answer).toContain('queue vs cron for retries');
+    expect(result.answer).toContain('idempotency key scope');
+    expect(result.answer).toContain("waiting on");
+  });
+
+  it('joins through decide-verb questions too', () => {
+    const result = answerQuery(sampleGraph, 'what did the team decide about the payments work?');
+    expect(result.understood).toBe(false);
+    expect(result.answer).toContain('d1');
+    expect(result.answer).toContain('d3');
+  });
+
+  it('says so, informed, when no decision is linked to the named work', () => {
+    const result = answerQuery(sampleGraph, 'which decision is blocking the onboarding work?');
+    expect(result.understood).toBe(false);
+    expect(result.answer).toContain('No decision is linked to work in Onboarding revamp (ONB-1)');
+  });
+
+  it('keeps impact and ranking questions on the epic route (join does not hijack)', () => {
+    expect(answerQuery(sampleGraph, 'what are the top knowledge-continuity risks in the Payments reliability epic?').intent).toBe('epic-impact');
+    expect(answerQuery(sampleGraph, 'risks in the payments reliability epic').intent).toBe('epic-impact');
+    // A lexically matched decision always wins over the join.
+    expect(answerQuery(sampleGraph, 'what is the status of the idempotency decision?').intent).toBe('decision-trace');
+  });
+
+  it('answers the eleven session-10 gaps with the right intent and entity', () => {
+    const cases: Array<[string, string, string | null]> = [
+      ['who is our linchpin?', 'top-risks', null],
+      ['what is the fallout of priya leaving?', 'person-impact', 'priya'],
+      ['what if we deprioritize the auth epic?', 'epic-impact', 'AUTH-1'],
+      ['what if the payments epic gets deprioritized?', 'epic-impact', 'PAY-1'],
+      ['who is the payments single point of failure?', 'epic-impact', 'PAY-1'],
+      ['who is spread the thinnest across epics?', 'top-risks', null],
+    ];
+    for (const [q, intent, id] of cases) {
+      const result = answerQuery(sampleGraph, q);
+      expect(result.understood, q).toBe(true);
+      expect(result.intent, q).toBe(intent);
+      if (id) expect((result.data as { personId?: string; epic?: { id: string } }).personId ?? (result.data as { epic?: { id: string } }).epic?.id, q).toBe(id);
+    }
+  });
+});

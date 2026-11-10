@@ -182,3 +182,24 @@ describe('matchDecision — session 10: decide-verb domain phrases', () => {
     expect(matchDecision(sampleGraph, 'who knows the most about the auth service?')).toEqual({});
   });
 });
+
+describe('matchEpic — session 11: scoped ranking domain phrases', () => {
+  it('anchors a scoped single-point-of-failure question to the named epic', () => {
+    // No "epic" word anywhere — the SPOF phrase opens the anchor lane, so the
+    // distinctive title token may carry the question.
+    expect(matchEpic(sampleGraph, 'who is the payments single point of failure?')).toEqual({ epicId: 'PAY-1' });
+    expect(matchEpic(sampleGraph, 'who is the onboarding single point of failure?')).toEqual({ epicId: 'ONB-1' });
+  });
+
+  it('anchors a scoped bottleneck question to the named epic', () => {
+    expect(matchEpic(sampleGraph, 'who is the payments bottleneck?')).toEqual({ epicId: 'PAY-1' });
+  });
+
+  it('does not invent epic matches without a distinctive token', () => {
+    // "our" scopes nothing; the unscoped ranking stays a free question.
+    expect(matchEpic(sampleGraph, 'who is our single point of failure?')).toEqual({});
+    expect(matchEpic(sampleGraph, 'who is the bottleneck?')).toEqual({});
+    // A topic phrase without an epic domain word or phrase still matches none.
+    expect(matchEpic(sampleGraph, 'the payments service is slow')).toEqual({});
+  });
+});

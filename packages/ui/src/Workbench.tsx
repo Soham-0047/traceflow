@@ -4,6 +4,7 @@ import { DataProvider } from './data';
 import { useRoute, hrefFor } from './router';
 import type { View } from './router';
 import { OverviewView } from './views/Overview';
+import { AskView } from './views/Ask';
 import { DecisionsView } from './views/Decisions';
 import { EpicsView } from './views/Epics';
 import { ImpactView } from './views/Impact';
@@ -11,6 +12,7 @@ import { PeopleView } from './views/People';
 
 const NAV: { view: View; label: string }[] = [
   { view: 'overview', label: 'Overview' },
+  { view: 'ask', label: 'Ask' },
   { view: 'people', label: 'People' },
   { view: 'impact', label: 'Impact' },
   { view: 'epics', label: 'Epics' },
@@ -55,6 +57,7 @@ function Shell({ sourceNote, footerNote }: ShellProps) {
       </header>
       <main id="main" tabIndex={-1}>
         {route.view === 'overview' ? <OverviewView /> : null}
+        {route.view === 'ask' ? <AskView /> : null}
         {route.view === 'people' ? <PeopleView /> : null}
         {route.view === 'impact' ? <ImpactView /> : null}
         {route.view === 'epics' ? <EpicsView /> : null}

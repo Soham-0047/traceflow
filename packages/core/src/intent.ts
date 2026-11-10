@@ -22,6 +22,10 @@ export interface IntentScores {
   epic: number;
   /** Domain words: decision, ADR, status. */
   decision: number;
+  /** People-subject wording ("who ..."). Weak on its own; used by the
+   *  no-entity arbitration to tell a people ranking that merely mentions
+   *  epics apart from an epic-subject question. */
+  who: number;
 }
 
 interface Signal {
@@ -38,13 +42,15 @@ const IMPACT: Signal[] = [
   // is out sick?" — illness and leave are temporary unavailability, the same
   // hypothetical the blast radius answers. Kept inside the if-lane so a bare
   // "sam is out sick today" (a statement, not a question) scores nothing.
-  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|quits|resigns|retires|is unavailable|becomes unavailable|is out sick|calls in sick|is on vacation|is on leave|goes on leave|got hit|gets hit|changes|changed|is cancelled|is canceled|gets cancelled|gets canceled|is reversed|gets reversed|is superseded|gets superseded|is descoped|gets descoped|is dropped|gets dropped)\b/i, weight: 3 },
+  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|quits|resigns|retires|is unavailable|becomes unavailable|is out sick|calls in sick|is on vacation|is on leave|goes on leave|got hit|gets hit|changes|changed|is cancelled|is canceled|gets cancelled|gets canceled|is reversed|gets reversed|is superseded|gets superseded|is descoped|gets descoped|is dropped|gets dropped|gets? deprioritized|is deprioritized|was deprioritized)\b/i, weight: 3 },
   { re: /\b(?:before|when)\s+(?:he|she|they)\s+(?:leaves?|left|goes|quit|quits|resigns?)\b/i, weight: 3 },
   { re: /\b(?:hit by a bus|bus factor)\b/i, weight: 3 },
   { re: /\b(?:offboard(?:ing|s)?|handover|hand-off|handoff|succession)\b/i, weight: 3 },
   // Consequence wording: "what are the consequences of priya leaving?" asks
-  // for the blast radius without any if-then verb pattern firing.
+  // for the blast radius without any if-then verb pattern firing. "fallout"
+  // (session 11) is the same family and just as strong.
   { re: /\bconsequences?\b/i, weight: 3 },
+  { re: /\bfallout\b/i, weight: 3 },
   // A bottleneck question is a blast-radius question in disguise: "who is
   // the bottleneck on the auth epic?" wants the epic's impact report.
   { re: /\bbottleneck\b/i, weight: 3 },
@@ -52,10 +58,12 @@ const IMPACT: Signal[] = [
   { re: /\bimpact\b/i, weight: 2 },
   { re: /\b(?:without|unavailable|loses?|losing|lost)\b/i, weight: 2 },
   { re: /\b(?:breaks?|stalls?|blocked|orphaned?)\b/i, weight: 2 },
-  // Change-verbs as actions ("we cancel", "superseding", "plan to reverse") —
-  // but NOT past participles used as state ("the decision is superseded"),
-  // which describe how things are, not a hypothetical change.
-  { re: /\b(?:cancel|supersede|reverse|descope)(?:s|ing)?\b|\b(?:cancelling|canceling|superseding|reversing|descoping)\b/i, weight: 2 },
+  // Change-verbs as actions ("we cancel", "superseding", "plan to reverse",
+  // "we deprioritize") — but NOT past participles used as state ("the decision
+  // is superseded", "the epic was deprioritized"), which describe how things
+  // are, not a hypothetical change. The 'ed' forms of deprioritize live only
+  // inside the if-lane above, where a hypothetical is explicit.
+  { re: /\b(?:cancel|supersede|reverse|descope)(?:s|ing)?\b|\b(?:cancelling|canceling|superseding|reversing|descoping)\b|\bdeprioriti[sz](?:e|es|ing)\b/i, weight: 2 },
   { re: /\bchang(?:e|es|ed|ing)\b/i, weight: 2 },
   { re: /\bdepend(?:s|ent|ents|ency|encies)?\b/i, weight: 2 },
   { re: /\bwhat if\b/i, weight: 1 },
@@ -87,6 +95,19 @@ const TOP_RISKS: Signal[] = [
   { re: /\bweakest links?\b/i, weight: 3 },
   { re: /\bliabilit(?:y|ies)\b/i, weight: 3 },
   { re: /\bcarrying\s+the\s+most\s+context\b/i, weight: 3 },
+  // Session 11 frontier closures: six more ways chat asks for the risk
+  // ranking. "linchpin", "key persons/people", "indispensable" and "tribal
+  // knowledge" are risk-noun families (mirroring "irreplaceable" and
+  // "institutional knowledge"); "spread thin" is the load phrasing, with
+  // the/too variants ("spread too thin", "spread the thinnest"); and "never
+  // want to lose" is phrase-tight — the idiom carries the "never", so "who
+  // do we want to lose?" keeps refusing (corpus boundary case).
+  { re: /\blinchpins?\b/i, weight: 3 },
+  { re: /\bkey\s+(?:persons?|people)\b/i, weight: 3 },
+  { re: /\bindispensable\b/i, weight: 3 },
+  { re: /\btribal\s+knowledge\b/i, weight: 3 },
+  { re: /\bspread\s+(?:(?:the|too)\s+)?thin(?:nest|ner)?\b/i, weight: 3 },
+  { re: /\bnever\s+want\s+to\s+lose\b/i, weight: 3 },
   { re: /\bat\s+risk\b/i, weight: 2 },
   { re: /\brisks?\b|\bexposure\b/i, weight: 2 },
   { re: /\brank(?:ed|ing|s)?\b/i, weight: 1 },
@@ -119,6 +140,16 @@ const EPIC: Signal[] = [
   { re: /\b(?:trace|behind)\b/i, weight: 1 },
 ];
 
+const WHO: Signal[] = [
+  // People-subject wording: "who is ...", "who do we ...". Weight 1 — it never
+  // decides anything on its own; the no-entity arbitration reads it to tell a
+  // people ranking that merely mentions epics ("who is spread the thinnest
+  // across epics?") apart from an epic-subject question ("which epics are most
+  // at risk right now?"), where answering with the people ranking would be
+  // confidently wrong.
+  { re: /\bwho\b/i, weight: 1 },
+];
+
 const DECISION: Signal[] = [
   { re: /\bdecisions?\b/i, weight: 2 },
   { re: /\badrs?\b/i, weight: 2 },
@@ -147,6 +178,7 @@ export function scoreIntents(question: string): IntentScores {
     overview: sum(OVERVIEW, question),
     epic: sum(EPIC, question),
     decision: sum(DECISION, question),
+    who: sum(WHO, question),
   };
 }
 
@@ -175,7 +207,15 @@ export const rankingStrong = (s: IntentScores): boolean => s.topRisks >= 3;
  * epic matched, so "the Payments reliability epic" questions never land here.
  */
 export function arbitrateFreeQuestion(s: IntentScores): 'top-risks' | 'overview' | undefined {
-  if (s.epic >= 2) return s.overview >= 2 ? 'overview' : undefined;
+  if (s.epic >= 2) {
+    // A who-question with a strong ranking signal is a people ranking that
+    // merely mentions epics as context ("who is spread the thinnest across
+    // epics?"); an epic-subject question ("which epics are most at risk?")
+    // keeps refusing, because answering it with the people ranking would be
+    // confidently wrong.
+    if (s.who >= 1 && s.topRisks >= 3) return 'top-risks';
+    return s.overview >= 2 ? 'overview' : undefined;
+  }
   if (rankingSignal(s) && s.topRisks >= s.overview) return 'top-risks';
   if (s.overview >= 2) return 'overview';
   return undefined;

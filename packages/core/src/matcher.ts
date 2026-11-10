@@ -246,6 +246,20 @@ const EPIC_DOMAIN_WORDS = new Set([
   'epic', 'lineage', 'trace', 'behind', 'impact', 'breaks', 'changes',
   'cancel', 'descoped', 'risks', 'risk', 'work',
 ]);
+/**
+ * Phrase signals that anchor a question to the epic domain when no single
+ * content token does: "who is the payments single point of failure?" has no
+ * "epic" word, yet the scoped ranking phrase clearly asks for that epic's
+ * blast radius, so the distinctive title token ("payments") may anchor.
+ * "bottleneck" is the same shape ("who is the payments bottleneck?") —
+ * session 9 already treats it as impact wording on a named epic. Like the
+ * decision phrases, these are tested against the raw question because the
+ * signal spans several words the tokenizer would scatter.
+ */
+const EPIC_DOMAIN_PHRASES: RegExp[] = [
+  /\bsingle\s+points?\s+of\s+failure\b/i,
+  /\bbottlenecks?\b/i,
+];
 /** Words that anchor a question to the decision domain. */
 const DECISION_DOMAIN_WORDS = new Set([
   'decision', 'decisions', 'adr', 'status', 'trace', 'impact', 'breaks',
@@ -354,7 +368,9 @@ export function matchEpic(graph: OrgGraph, question: string, options: RecordMatc
   const qTokens = tokens(q);
   const words = new Set(rawWords(q));
   const hasDomainWord =
-    options.assumeDomain === true || qTokens.some((t) => EPIC_DOMAIN_WORDS.has(t));
+    options.assumeDomain === true ||
+    qTokens.some((t) => EPIC_DOMAIN_WORDS.has(t)) ||
+    EPIC_DOMAIN_PHRASES.some((re) => re.test(q));
 
   const matcherIndex = getMatcherIndex(graph);
   const records = matcherIndex.epicRecords;

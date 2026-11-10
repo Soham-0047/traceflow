@@ -22,7 +22,8 @@ export const CONFIDENCE_LABEL: Record<Confidence, string> = {
   low: 'Low',
 };
 
-function RecordRow({ record }: { record: RecordRef }) {
+/** One supporting record row (source, id, linked title). Shared with the Ask view. */
+export function RecordRow({ record }: { record: RecordRef })  {
   const title = record.url ? (
     <a href={record.url}>{record.title}</a>
   ) : (

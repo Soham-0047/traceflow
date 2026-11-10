@@ -729,14 +729,13 @@ var EVAL_CORPUS_HARD = [
   { question: "did anyone update the runbook?", expect: { understood: false } },
   { question: "who should pick up the payments pager?", expect: { understood: false } },
   { question: "who is the happiest person on the team?", expect: { understood: false } },
-  /* ------- session 10: the next documented frontier (open gaps) ------- */
-  // Ideal behavior an ideal engine would have; the current one misses —
-  // this is the honest headroom that keeps the measured number in band.
-  // Two families: (a) ranking synonyms not yet in the lexicon (linchpin,
-  // key persons, indispensable, guardians of tribal knowledge, spread
-  // thin, never want to lose, fallout); (b) scoping and priority wording
-  // (a decision blocking an epic's work, deprioritize as a change-verb,
-  // a scoped "payments single point of failure" ranking).
+  /* ------- session 11: the eleven session-10 gaps, closed and locked ------- */
+  // The lexicon expansion (ranking synonyms linchpin / key persons /
+  // indispensable / tribal knowledge / spread thin / never-want-to-lose,
+  // fallout as consequence wording, deprioritize forms) plus the epic domain
+  // phrases (a scoped "payments single point of failure", "bottleneck") and
+  // the who-subject escape in the no-entity arbitration. They stay in the
+  // corpus so a lexicon regression fails CI.
   { question: "who is our linchpin?", expect: { understood: true, intent: "top-risks" } },
   { question: "who are our key persons?", expect: { understood: true, intent: "top-risks" } },
   { question: "who is our most indispensable engineer?", expect: { understood: true, intent: "top-risks" } },
@@ -744,10 +743,75 @@ var EVAL_CORPUS_HARD = [
   { question: "who are the guardians of our tribal knowledge?", expect: { understood: true, intent: "top-risks" } },
   { question: "who is spread the thinnest across epics?", expect: { understood: true, intent: "top-risks" } },
   { question: "who do we never want to lose?", expect: { understood: true, intent: "top-risks" } },
-  { question: "which decision is blocking the payments work?", expect: { understood: true, intent: "decision-trace", decisionId: "d1" } },
   { question: "what if we deprioritize the auth epic?", expect: { understood: true, intent: "epic-impact", epicId: "AUTH-1" } },
   { question: "what if the payments epic gets deprioritized?", expect: { understood: true, intent: "epic-impact", epicId: "PAY-1" } },
-  { question: "who is the payments single point of failure?", expect: { understood: true, intent: "epic-impact", epicId: "PAY-1" } }
+  { question: "who is the payments single point of failure?", expect: { understood: true, intent: "epic-impact", epicId: "PAY-1" } },
+  // Relabeled: the payments work has TWO decisions proposed against it (d1
+  // and d3). The honest closure names both with their statuses through the
+  // recorded links — the scope join — instead of guessing one.
+  { question: "which decision is blocking the payments work?", expect: { understood: false, messageIncludes: ["d1", "d3", "queue vs cron", "idempotency key scope"] } },
+  /* ------- session 11: regression cases for the closures and new lanes ------- */
+  // The new signals work in real sentence shapes, not just the documented
+  // phrasings; the decision scope join resolves candidates through the
+  // recorded links — the same linkage traceDecision uses — in both directions.
+  { question: "who is the linchpin of the payments team?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who are our key people?", expect: { understood: true, intent: "top-risks" } },
+  { question: "is alex indispensable?", expect: { understood: true, intent: "person-risk", personId: "alex" } },
+  { question: "who is irreplaceable on the payments team?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is spread too thin?", expect: { understood: true, intent: "top-risks" } },
+  { question: "what is the fallout if sam quits?", expect: { understood: true, intent: "person-impact", personId: "sam" } },
+  { question: "what happens if the auth epic gets deprioritized?", expect: { understood: true, intent: "epic-impact", epicId: "AUTH-1" } },
+  { question: "who is the payments bottleneck?", expect: { understood: true, intent: "epic-impact", epicId: "PAY-1" } },
+  { question: "who is the onboarding single point of failure?", expect: { understood: true, intent: "epic-impact", epicId: "ONB-1" } },
+  { question: "what is at stake if the auth epic is descoped?", expect: { understood: true, intent: "epic-impact", epicId: "AUTH-1" } },
+  { question: "what would we lose if the onboarding epic slipped?", expect: { understood: true, intent: "epic-impact", epicId: "ONB-1" } },
+  // The scope join: one candidate traces it, none says so informed, several
+  // are named with statuses — never guessed.
+  { question: "which decision is blocking the auth work?", expect: { understood: true, intent: "decision-trace", decisionId: "d2" } },
+  { question: "which decision is holding up the auth work?", expect: { understood: true, intent: "decision-trace", decisionId: "d2" } },
+  { question: "what did the team decide about the payments work?", expect: { understood: false, messageIncludes: ["d1", "d3"] } },
+  { question: "which decision is blocking the onboarding work?", expect: { understood: false, messageIncludes: ["no decision is linked"] } },
+  /* ------- session 11: boundary checks for the new signals ------- */
+  // The new phrasings must stay tight: "never" carries the lose idiom, "key
+  // persons" is not every "key engineer" word, "spread thin" needs the spread,
+  // and a deprioritized STATE outside the if-lane stays out of impact.
+  { question: "who do we want to lose?", expect: { understood: false } },
+  { question: "who are our key engineers?", expect: { understood: false } },
+  { question: "who is the thinnest person on the team?", expect: { understood: false } },
+  { question: "what is the status of the auth epic after it was deprioritized?", expect: { understood: true, intent: "epic-lineage", epicId: "AUTH-1" } },
+  /* ------- session 11: more unanswerable-but-plausible, must refuse ------- */
+  // Skill, performance, org-structure, history and load questions: the
+  // records cannot show experience, quality, reporting lines, dates or load.
+  { question: "who is the most experienced person here?", expect: { understood: false } },
+  { question: "who is the best engineer on the team?", expect: { understood: false } },
+  { question: "who has the most direct reports?", expect: { understood: false } },
+  { question: "when did the team start using retries?", expect: { understood: false } },
+  { question: "who wrote the most pages last month?", expect: { understood: false } },
+  { question: "which epics are in the worst shape?", expect: { understood: false } },
+  { question: "who is the most overloaded person here?", expect: { understood: false } },
+  /* ------- session 11: the next documented frontier (open gaps) ------- */
+  // Ideal behavior an ideal engine would have; the current one misses —
+  // this is the honest headroom that keeps the measured number in band.
+  // Two families: (a) ranking-synonym leftovers (most important, cannot
+  // afford to lose, glue, most valuable player, miss the most, takes the
+  // most with them, must never lose, backbone, the go-to person); (b) impact
+  // and consequence wording gaps (drop as a change action, implications,
+  // the when-lane with a person name, how bad would it be, being in the
+  // loop on an epic's work).
+  { question: "who is the most important person here?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who are the people we cannot afford to lose?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the glue that holds this team together?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the team's most valuable player?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the person we would miss the most?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who takes the most with them if they leave?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who must we never lose?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the team's backbone?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the person everyone goes to with questions?", expect: { understood: true, intent: "top-risks" } },
+  { question: "what if we drop the onboarding revamp?", expect: { understood: true, intent: "epic-impact", epicId: "ONB-1" } },
+  { question: "what are the implications of the queue decision?", expect: { understood: true, intent: "decision-impact", decisionId: "d1" } },
+  { question: "who is exposed when alex is out of office?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "how bad would it be if sam quit?", expect: { understood: true, intent: "person-impact", personId: "sam" } },
+  { question: "who needs to be in the loop on the payments work?", expect: { understood: true, intent: "epic-impact", epicId: "PAY-1" } }
 ];
 var EVAL_CORPUS_ALL = [...EVAL_CORPUS, ...EVAL_CORPUS_HARD];
 
