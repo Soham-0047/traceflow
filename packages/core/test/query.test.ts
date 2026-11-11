@@ -363,3 +363,80 @@ describe('answerQuery — session 12: frontier closures, guard and matcher scope
     expect(result.suggestions).toBeDefined();
   });
 });
+
+describe('answerQuery — session 13: frontier closures, the while-lane and the bare-leave fix', () => {
+  it('answers the seventeen session-12 gaps with the right intent and entity', () => {
+    const cases: Array<[string, string, string | null]> = [
+      ['who would be impossible to replace?', 'top-risks', null],
+      ['who has the keys to the kingdom?', 'top-risks', null],
+      ['who is exposed while alex is on vacation?', 'person-impact', 'alex'],
+      ['what are the ripple effects of the queue decision?', 'decision-impact', 'd1'],
+      ['who are our knowledge hoarders?', 'top-risks', null],
+      ['who is our secret weapon?', 'top-risks', null],
+      ['who is the most central person on the team?', 'top-risks', null],
+      ['what if priya goes on parental leave?', 'person-impact', 'priya'],
+      ['who is the institutional memory of the team?', 'top-risks', null],
+      ['who is the most relied-upon person here?', 'top-risks', null],
+      ['what is our biggest vulnerability as a team?', 'top-risks', null],
+      ['who would have the biggest shoes to fill?', 'top-risks', null],
+      ['what if alex gets poached?', 'person-impact', 'alex'],
+      ['who would the team struggle without the most?', 'top-risks', null],
+      ['who is our weak spot?', 'top-risks', null],
+      ['who is the most load-bearing person on the team?', 'top-risks', null],
+      ['who is carrying an unreasonable load?', 'top-risks', null],
+    ];
+    for (const [q, intent, id] of cases) {
+      const result = answerQuery(sampleGraph, q);
+      expect(result.understood, q).toBe(true);
+      expect(result.intent, q).toBe(intent);
+      if (id) {
+        const data = result.data as { personId?: string; epic?: { id: string }; decision?: { id: string } };
+        expect(data.personId ?? data.epic?.id ?? data.decision?.id, q).toBe(id);
+      }
+    }
+  });
+
+  it('answers rely-on dependence questions with the blast radius, like depend-on', () => {
+    const result = answerQuery(sampleGraph, 'who relies on priya?');
+    expect(result.understood).toBe(true);
+    expect(result.intent).toBe('person-impact');
+    expect((result.data as { personId?: string }).personId).toBe('priya');
+  });
+
+  it('routes the scoped weak-spot and lynchpin idioms to the epic blast radius', () => {
+    for (const q of ['who is the payments weak spot?', 'who is the payments lynchpin?']) {
+      const scoped = answerQuery(sampleGraph, q);
+      expect(scoped.understood, q).toBe(true);
+      expect(scoped.intent, q).toBe('epic-impact');
+      expect((scoped.data as { epic?: { id: string } }).epic?.id, q).toBe('PAY-1');
+    }
+    // The unscoped forms stay the people ranking.
+    expect(answerQuery(sampleGraph, 'who is our weak spot?').intent).toBe('top-risks');
+    expect(answerQuery(sampleGraph, 'who is our lynchpin?').intent).toBe('top-risks');
+  });
+
+  it('does not fire impact on the scheduling shapes of the availability lanes', () => {
+    // All three once fired the departure lane through the NOUN "leave"
+    // (the session-12 any-subject extension): the lazy filler spanned
+    // "does priya go on parental" / "is alex on" / "will sam be back from"
+    // and matched "leave" as a departure verb. They now route to the named
+    // person's profile like every factual person question.
+    for (const [q, id] of [
+      ['when does priya go on parental leave?', 'priya'],
+      ['when is alex on leave?', 'alex'],
+      ['when will sam be back from leave?', 'sam'],
+    ] as const) {
+      const result = answerQuery(sampleGraph, q);
+      expect(result.understood, q).toBe(true);
+      expect(result.intent, q).toBe('person-risk');
+      expect((result.data as { personId?: string }).personId, q).toBe(id);
+    }
+  });
+
+  it('keeps the replace family one-sided: the opposite ranking refuses', () => {
+    const result = answerQuery(sampleGraph, 'who is the most replaceable person on the team?');
+    expect(result.understood).toBe(false);
+    expect(result.evidence).toEqual([]);
+    expect(result.suggestions).toBeDefined();
+  });
+});

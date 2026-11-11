@@ -50,25 +50,50 @@ const IMPACT: Signal[] = [
   // both past and present plural). Bare "leave" stays out: "if they leave"
   // only ever appears without a name, and "if we leave the work open" is a
   // different hypothetical than a departure.
-  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|departed|quit|quits|resigns|resigned|retires|retired|is unavailable|becomes unavailable|is out sick|is out of office|calls in sick|is on vacation|is on leave|goes on leave|got hit|gets hit|changes|changed|(?:is|gets?|got|was|were)\s+(?:cancelled|canceled|reversed|superseded|descoped|dropped|deprioritized))\b/i, weight: 3 },
+  // Session 13: the availability list grows the real chat shapes — "gets
+  // sick" / "falls ill" ("what if alex gets sick?"), "is away" ("what if
+  // alex is away next month?"), the parental / maternity / paternity leave
+  // and sabbatical forms in their goes-on / takes variants ("what if priya
+  // goes on parental leave?", "what if priya takes a sabbatical?"), and
+  // "is/gets poached" ("what if alex gets poached?"), the talent-loss
+  // hypothetical.
+  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|departed|quit|quits|resigns|resigned|retires|retired|is unavailable|becomes unavailable|is out sick|gets sick|falls ill|is out of office|calls in sick|is on vacation|is on leave|goes on leave|is away|will be away|got hit|gets hit|changes|changed|(?:is|goes)\s+on\s+(?:parental|maternity|paternity)\s+leave|(?:is|goes)\s+on\s+sabbatical|takes\s+(?:an?\s+)?(?:(?:parental|maternity|paternity)\s+)?leave|takes\s+(?:an?\s+)?sabbatical|(?:is|gets?|got|was|were)\s+poached|(?:is|gets?|got|was|were)\s+(?:cancelled|canceled|reversed|superseded|descoped|dropped|deprioritized))\b/i, weight: 3 },
   // The when-lane: same hypothetical as the if-lane, but anchored by "when"
   // or "before". Extended in session 12 from pronouns-only ("before he
   // leaves") to any subject ("when alex is out of office"): the lazy filler
   // is bounded and the availability words must follow a be-verb, so "when is
   // alex on leave?" (a scheduling question) and "when will sam be back from
   // leave?" do not fire — only "when <someone> is out of office / on leave
-  // / out sick / on vacation / unavailable" does.
-  { re: /\bwhen\s+[^.?!]{0,32}?\s(?:is|are)\s+(?:out\s+of\s+(?:office|sick)|on\s+(?:leave|vacation)|unavailable)\b/i, weight: 3 },
-  { re: /\b(?:before|when)\s+[^.?!]{0,32}?\s(?:leaves?|left|goes|quit|quits|resigns?|resigned|retires?|retired)\b/i, weight: 3 },
+  // / out sick / on vacation / unavailable" does. Session 13 closes a
+  // regression that extension introduced: the DEPARTURE lane below once
+  // accepted bare "leave", so its lazy filler could span "does priya go on
+  // parental" and read the NOUN "leave" as the departure verb — "when does
+  // priya go on parental leave?", "when is alex on leave?" and "when will
+  // sam be back from leave?" all fired impact. Bare "leave" is out of the
+  // departure lane now (only "leaves"/"left" match), exactly like the
+  // if-lane above; the noun rides the availability lane, where it must
+  // follow a be-verb. "away" and the parental / sabbatical forms join the
+  // availability lane's list to mirror the if-lane.
+  { re: /\bwhen\s+[^.?!]{0,32}?\s(?:is|are)\s+(?:out\s+of\s+(?:office|sick)|on\s+(?:(?:parental|maternity|paternity)\s+)?(?:leave|vacation|sabbatical)|away|unavailable)\b/i, weight: 3 },
+  { re: /\b(?:before|when)\s+[^.?!]{0,32}?\s(?:leaves|left|goes|quit|quits|resigns?|resigned|retires?|retired)\b/i, weight: 3 },
+  // The while-lane (session 13): the same availability hypothetical the
+  // when-lane answers, anchored by "while" — "who is exposed while alex is
+  // on vacation?" asks for Alex's blast radius without any if or when. It
+  // mirrors the when-availability lane exactly (bounded lazy filler, a
+  // be-verb, then the availability words), so a bare "while alex was on
+  // vacation" (past tense, a historical fact, not a hypothetical) and a
+  // "while on vacation" fragment (no be-verb) both stay out.
+  { re: /\bwhile\s+[^.?!]{0,32}?\s(?:is|are)\s+(?:out\s+of\s+(?:office|sick)|on\s+(?:(?:parental|maternity|paternity)\s+)?(?:leave|vacation|sabbatical)|away|unavailable)\b/i, weight: 3 },
   { re: /\b(?:hit by a bus|bus factor)\b/i, weight: 3 },
   { re: /\b(?:offboard(?:ing|s)?|handover|hand-off|handoff|succession)\b/i, weight: 3 },
   // Consequence wording: "what are the consequences of priya leaving?" asks
   // for the blast radius without any if-then verb pattern firing. "fallout"
-  // (session 11) and "implications" (session 12) are the same family and
-  // just as strong.
+  // (session 11), "implications" (session 12) and "ripple effects" (session
+  // 13) are the same family and just as strong.
   { re: /\bconsequences?\b/i, weight: 3 },
   { re: /\bfallout\b/i, weight: 3 },
   { re: /\bimplications?\b/i, weight: 3 },
+  { re: /\bripple\s+effects?\b/i, weight: 3 },
   // Who-needs-to-know wording: "who needs to be in the loop on the payments
   // work?" asks for the blast radius report's who-needs-to-know section —
   // epic, decision or person. Needs/must/should + be keeps it a question
@@ -95,7 +120,13 @@ const IMPACT: Signal[] = [
   // "ping" is "droping", a misspelling).
   { re: /\b(?:cancel|supersede|reverse|descope|drop)(?:s|ing)?\b|\b(?:cancelling|canceling|superseding|reversing|descoping|dropping)\b|\bdeprioriti[sz](?:e|es|ing)\b/i, weight: 2 },
   { re: /\bchang(?:e|es|ed|ing)\b/i, weight: 2 },
-  { re: /\bdepend(?:s|ent|ents|ency|encies)?\b/i, weight: 2 },
+  // Dependence wording, verb and noun forms alike. "rel(y|ies|ied) on/upon"
+  // (session 13) is the same dependence as "depend(s)": "who relies on
+  // priya?" asks for Priya's blast radius exactly like "who depends on
+  // priya?". The ranking shapes of the rely family ("who do we rely on the
+  // most?") live in TOP_RISKS below, where the who-anchor keeps them a
+  // ranking rather than one person's blast radius.
+  { re: /\bdepend(?:s|ent|ents|ency|encies)?\b|\brel(?:y|ies|ied)\s+(?:on|upon)\b/i, weight: 2 },
   { re: /\bwhat if\b/i, weight: 1 },
   { re: /\baffected\b/i, weight: 1 },
 ];
@@ -131,8 +162,10 @@ const TOP_RISKS: Signal[] = [
   // "institutional knowledge"); "spread thin" is the load phrasing, with
   // the/too variants ("spread too thin", "spread the thinnest"); and "never
   // want to lose" is phrase-tight — the idiom carries the "never", so "who
-  // do we want to lose?" keeps refusing (corpus boundary case).
-  { re: /\blinchpins?\b/i, weight: 3 },
+  // do we want to lose?" keeps refusing (corpus boundary case). Session 13:
+  // "lynchpin" joins — the common spelling variant of "linchpin" was a
+  // genuine miss ("who is our lynchpin?" refused).
+  { re: /\blinchpins?\b|\blynchpins?\b/i, weight: 3 },
   { re: /\bkey\s+(?:persons?|people)\b/i, weight: 3 },
   { re: /\bindispensable\b/i, weight: 3 },
   { re: /\btribal\s+knowledge\b/i, weight: 3 },
@@ -158,8 +191,40 @@ const TOP_RISKS: Signal[] = [
   { re: /\bbackbone\b/i, weight: 3 },
   { re: /\bgo[-\s]to\s+(?:person|people)\b/i, weight: 3 },
   { re: /\beveryone\s+go(?:es)?\s+to\b/i, weight: 3 },
+  // Session 13 frontier closures: thirteen more ways chat asks for the risk
+  // ranking, each phrase-tight so near-miss wordings keep refusing. The
+  // replace family is "impossible/hardest/toughest to replace" plus "least
+  // replaceable" — NOT bare "replaceable", because "who is the most
+  // replaceable person?" asks for the OPPOSITE ranking and the answer
+  // renders highest-risk first; that question keeps refusing. "keys to the
+  // kingdom", "secret weapon", "shoes to fill" and "weak spot" are the
+  // risk-noun idioms; "knowledge hoarders" covers noun, verb and gerund
+  // ("who hoards knowledge?", "is there knowledge hoarding?"); "most
+  // central", "institutional memory", "load-bearing" and "unreasonable
+  // load" are the criticality phrasings; the relied-upon family covers
+  // "most relied-upon/-on", "relied upon/on the most" and the who-anchored
+  // "who do we rely on?"; "cannot lose" completes the lose idiom beside
+  // "never lose"; the vulnerability family is superlative-tight
+  // (biggest/largest/greatest/main/major), and "struggle without" needs the
+  // without ("who struggles the most?" is an attendance/effort question and
+  // keeps refusing).
+  { re: /\b(?:impossible|hardest|toughest)\s+to\s+replace\b|\bleast\s+replaceable\b/i, weight: 3 },
+  { re: /\bkeys?\s+to\s+the\s+kingdom\b/i, weight: 3 },
+  { re: /\bknowledge\s+hoard(?:ers?|ing)\b|\bhoard(?:s|ing)?\s+knowledge\b/i, weight: 3 },
+  { re: /\bsecret\s+weapons?\b/i, weight: 3 },
+  { re: /\bmost\s+central\b/i, weight: 3 },
+  { re: /\binstitutional\s+memory\b/i, weight: 3 },
+  { re: /\bmost\s+relied[-\s]?(?:upon|on)\b|\brelied[-\s]?(?:upon|on)\s+the\s+most\b|\bwho\s+do(?:es)?\s+(?:we|you|they|everyone|the\s+team)\s+rely\s+on\b/i, weight: 3 },
+  { re: /\b(?:biggest|largest|greatest|main|major)\s+vulnerabilit(?:y|ies)\b/i, weight: 3 },
+  { re: /\bmost\s+vulnerable\s+(?:person|people|member|teammate|employee|engineer|player)s?\b/i, weight: 3 },
+  { re: /\bshoes\s+to\s+fill\b/i, weight: 3 },
+  { re: /\bstruggl(?:e|es|ed|ing)\s+without\b/i, weight: 3 },
+  { re: /\bweak\s+spots?\b/i, weight: 3 },
+  { re: /\bload[-\s]bearing\b/i, weight: 3 },
+  { re: /\bunreasonable\s+loads?\b/i, weight: 3 },
+  { re: /\b(?:cannot|can't|can\s+not)\s+lose\b/i, weight: 3 },
   { re: /\bat\s+risk\b/i, weight: 2 },
-  { re: /\brisks?\b|\bexposure\b/i, weight: 2 },
+  { re: /\brisks?\b|\bexposure\b|\bexposed\b/i, weight: 2 },
   { re: /\brank(?:ed|ing|s)?\b/i, weight: 1 },
   { re: /\bwho (?:is|are|should|was|do)\b/i, weight: 1 },
   { re: /\b(?:worry|worried|concern(?:ed|s)?)\b/i, weight: 1 },

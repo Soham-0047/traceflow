@@ -185,10 +185,11 @@ export const EVAL_CORPUS: readonly EvalCase[] = [
  * efficiency honest and inside the 88-95% band instead of a flattering
  * 100%. Closing a gap raises the number; the CI floor (88%) guards against
  * regressions. Session 9 closed the nine session-8 gaps, session 10 the next
- * nine, session 11 the following eleven, and session 12 the fourteen after
- * that (the lexicon expansion, the backbone epic domain phrase, the
- * keep-in-the-loop command guard and the directional prefix lane below);
- * every closure was verified end to end against the full AnswerResult before
+ * nine, session 11 the following eleven, session 12 the fourteen after
+ * that, and session 13 the seventeen after that (the lexicon expansion, the
+ * while-lane, the weak-spot and lynchpin epic domain phrases, the rely-on
+ * dependence signal and the bare-"leave" departure-lane fix below); every
+ * closure was verified end to end against the full AnswerResult before
  * the case moved into the regression tier, and each session documented the
  * next frontier so the headroom stays real.
  */
@@ -362,7 +363,11 @@ export const EVAL_CORPUS_HARD: readonly EvalCase[] = [
   // The new signals work in real sentence shapes, not just the documented
   // phrasings; the decision scope join resolves candidates through the
   // recorded links — the same linkage traceDecision uses — in both directions.
-  { question: 'who is the linchpin of the payments team?', expect: { understood: true, intent: 'top-risks' } },
+  // Relabeled in session 13: "lynchpin" joined the scoped-risk-idiom epic
+  // domain phrases (bottleneck / SPOF / backbone / weak spot), so the
+  // "<idiom> of the payments team" shape anchors the Payments blast radius
+  // — the same consistency relabel session 12 made for the backbone.
+  { question: 'who is the linchpin of the payments team?', expect: { understood: true, intent: 'epic-impact', epicId: 'PAY-1' } },
   { question: 'who are our key people?', expect: { understood: true, intent: 'top-risks' } },
   { question: 'is alex indispensable?', expect: { understood: true, intent: 'person-risk', personId: 'alex' } },
   { question: 'who is irreplaceable on the payments team?', expect: { understood: true, intent: 'top-risks' } },
@@ -497,16 +502,17 @@ export const EVAL_CORPUS_HARD: readonly EvalCase[] = [
   { question: 'who is the one person who knows the payments system end to end?', expect: { understood: false } },
   { question: 'which two people should never be on vacation at the same time?', expect: { understood: false } },
 
-  /* ------- session 12: the next documented frontier (open gaps) ------- */
-  // Ideal behavior an ideal engine would have; the current one misses —
-  // this is the honest headroom that keeps the measured number in band.
-  // Two families: (a) ranking-synonym leftovers (impossible to replace,
-  // keys to the kingdom, knowledge hoarders, secret weapon, most central,
-  // institutional memory, most relied-upon, biggest vulnerability, biggest
-  // shoes to fill, struggle without the most, weak spot, load-bearing,
-  // unreasonable load); (b) impact wording gaps (the while-lane with a
-  // person name, ripple effects as consequence wording, parental leave and
-  // poached inside the if-lane).
+  /* ------- session 13: the seventeen session-12 gaps, closed and locked ------- */
+  // The lexicon expansion (impossible-to-replace / keys to the kingdom /
+  // knowledge hoarders / secret weapon / most central / institutional
+  // memory / most relied-upon / biggest vulnerability / shoes to fill /
+  // struggle-without / weak spot / load-bearing / unreasonable load as
+  // ranking synonyms; ripple effects as consequence wording; the while-lane
+  // with a person name; parental leave and poached inside the if-lane) plus
+  // the weak-spot and lynchpin epic domain phrases and the rely-on
+  // dependence signal. Every closure was verified end to end against the
+  // full AnswerResult before the case moved here, and they stay in the
+  // corpus so a lexicon regression fails CI.
   { question: 'who would be impossible to replace?', expect: { understood: true, intent: 'top-risks' } },
   { question: 'who has the keys to the kingdom?', expect: { understood: true, intent: 'top-risks' } },
   { question: 'who is exposed while alex is on vacation?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
@@ -524,6 +530,155 @@ export const EVAL_CORPUS_HARD: readonly EvalCase[] = [
   { question: 'who is our weak spot?', expect: { understood: true, intent: 'top-risks' } },
   { question: 'who is the most load-bearing person on the team?', expect: { understood: true, intent: 'top-risks' } },
   { question: 'who is carrying an unreasonable load?', expect: { understood: true, intent: 'top-risks' } },
+
+  /* ------- session 13: regression cases for the closures and new lanes ------- */
+  // The new signals work in real sentence shapes, not just the documented
+  // phrasings. Every label was probed end to end against the full
+  // AnswerResult before it was baked in here.
+  // The replace family: hardest/toughest variants and "least replaceable".
+  { question: 'who is impossible to replace?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who would be the hardest to replace?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is the least replaceable person here?', expect: { understood: true, intent: 'top-risks' } },
+  // Knowledge hoarding: verb and gerund forms.
+  { question: 'who hoards knowledge on this team?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'is there knowledge hoarding on the team?', expect: { understood: true, intent: 'top-risks' } },
+  // Secret weapon: possessive and what-forms.
+  { question: "who is the team's secret weapon?", expect: { understood: true, intent: 'top-risks' } },
+  { question: 'what is our secret weapon for payments?', expect: { understood: true, intent: 'top-risks' } },
+  // Institutional memory, like institutional knowledge.
+  { question: 'who holds the institutional memory?', expect: { understood: true, intent: 'top-risks' } },
+  // The relied-upon family: hyphen and no-hyphen, the on-variant, the
+  // who-anchored rely-on ranking, and the dependence question ("who relies
+  // on priya?" is Priya's blast radius exactly like "who depends on her?").
+  { question: 'who is the most relied-upon engineer on the team?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is the most relied upon person?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is relied on the most?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who do we rely on the most?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who relies on priya?', expect: { understood: true, intent: 'person-impact', personId: 'priya' } },
+  // Vulnerability: the superlative and the person-noun form.
+  { question: 'what is our biggest vulnerability?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is the most vulnerable person on the team?', expect: { understood: true, intent: 'top-risks' } },
+  // Shoes to fill, struggle-without and cannot-lose in their other shapes.
+  { question: 'who leaves the biggest shoes to fill?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who would we struggle without?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'the team would struggle without alex', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'who is the one we cannot lose?', expect: { understood: true, intent: 'top-risks' } },
+  // Scoped risk idioms anchor the epic like bottleneck/SPOF/backbone; the
+  // unscoped forms and the "<epic> team" forms stay the people ranking.
+  { question: 'who is the weak spot on the team?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is the payments weak spot?', expect: { understood: true, intent: 'epic-impact', epicId: 'PAY-1' } },
+  { question: 'who is the payments lynchpin?', expect: { understood: true, intent: 'epic-impact', epicId: 'PAY-1' } },
+  { question: 'who is our lynchpin?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'is the auth epic a weak spot?', expect: { understood: true, intent: 'epic-impact', epicId: 'AUTH-1' } },
+  { question: 'who is load-bearing on the auth epic?', expect: { understood: true, intent: 'epic-impact', epicId: 'AUTH-1' } },
+  { question: 'who is the most relied-upon person on the auth epic?', expect: { understood: true, intent: 'epic-impact', epicId: 'AUTH-1' } },
+  { question: 'who is the most relied-upon person on the payments team?', expect: { understood: true, intent: 'top-risks' } },
+  // Parental / maternity / paternity leave and sabbatical in their takes
+  // forms; poached with the competitor filler inside the bounded window.
+  { question: 'what if priya takes maternity leave?', expect: { understood: true, intent: 'person-impact', personId: 'priya' } },
+  { question: 'what if sam takes paternity leave?', expect: { understood: true, intent: 'person-impact', personId: 'sam' } },
+  { question: 'what if priya takes a sabbatical?', expect: { understood: true, intent: 'person-impact', personId: 'priya' } },
+  { question: 'what if alex is poached?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'what if alex gets poached by a competitor?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  // The while-lane across its availability list, plus a when-lane parental
+  // case and the if-lane goes-on-sabbatical shape.
+  { question: 'who is exposed while sam is on leave?', expect: { understood: true, intent: 'person-impact', personId: 'sam' } },
+  { question: 'who is exposed while priya is out of office?', expect: { understood: true, intent: 'person-impact', personId: 'priya' } },
+  { question: 'who is exposed while alex is on sabbatical?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'who covers the payments work while alex is on vacation?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'who is exposed when alex is on parental leave?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'who is exposed if alex goes on sabbatical?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  // Illness and absence wording in the if-lane.
+  { question: 'what if alex gets sick?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'what if alex falls ill?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'what if alex is away next month?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  // Ripple effects across all three subjects: person, decision, epic.
+  { question: 'what are the ripple effects of losing sam?', expect: { understood: true, intent: 'person-impact', personId: 'sam' } },
+  { question: 'what are the ripple effects of the token format decision?', expect: { understood: true, intent: 'decision-impact', decisionId: 'd2' } },
+  { question: 'what are the ripple effects of the payments epic being cancelled?', expect: { understood: true, intent: 'epic-impact', epicId: 'PAY-1' } },
+  // Exposure and risk idioms that already worked through the person lane,
+  // the loss wording and the decision consequence wording, locked here so
+  // a regression fails CI.
+  { question: 'who is the most exposed person on the team?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'is alex a flight risk?', expect: { understood: true, intent: 'person-risk', personId: 'alex' } },
+  { question: 'who would be lost without alex?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'what if we lose alex to google?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'who would feel it most if priya left?', expect: { understood: true, intent: 'person-impact', personId: 'priya' } },
+  { question: 'who is the single biggest risk to the payments epic?', expect: { understood: true, intent: 'epic-impact', epicId: 'PAY-1' } },
+  { question: 'what is the fallout if alex jumps ship?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'what breaks if we revisit the queue decision?', expect: { understood: true, intent: 'decision-impact', decisionId: 'd1' } },
+
+  /* ------- session 13: boundary checks for the new signals ------- */
+  // The new phrasings must stay tight: the replace family needs its
+  // superlative ("who is the most replaceable person?" asks for the
+  // OPPOSITE ranking and refuses), the kingdom needs its keys' destination,
+  // struggle-without needs the without, and the scheduling shapes of the
+  // availability lanes must not fire impact — "when does priya go on
+  // parental leave?", "when is alex on leave?" and "when will sam be back
+  // from leave?" all once fired the departure lane through the NOUN
+  // "leave" (the session-12 any-subject extension; fixed in session 13),
+  // and they now route to the named person's profile like every factual
+  // person question.
+  { question: 'who is impossible?', expect: { understood: false } },
+  { question: 'who has the keys?', expect: { understood: false } },
+  { question: 'who struggles the most?', expect: { understood: false } },
+  { question: 'who is the most replaceable person on the team?', expect: { understood: false } },
+  { question: 'when does priya go on parental leave?', expect: { understood: true, intent: 'person-risk', personId: 'priya' } },
+  { question: 'when will sam be back from leave?', expect: { understood: true, intent: 'person-risk', personId: 'sam' } },
+  { question: 'when is alex on leave?', expect: { understood: true, intent: 'person-risk', personId: 'alex' } },
+  { question: 'who poached alex?', expect: { understood: true, intent: 'person-risk', personId: 'alex' } },
+  { question: 'who is the most central person on the payments team?', expect: { understood: true, intent: 'top-risks' } },
+
+  /* ------- session 13: more unanswerable-but-plausible, must refuse ------- */
+  // Trust, intelligence, tenure, resident expertise, stardom, pay and
+  // customer rapport: the records cannot rank any of these, and the
+  // ranking lexicon must not stretch to cover them.
+  { question: 'who is the most trusted person on the team?', expect: { understood: false } },
+  { question: 'who is the smartest engineer here?', expect: { understood: false } },
+  { question: 'who has the most tenure on the team?', expect: { understood: false } },
+  { question: 'who is our resident expert on payments?', expect: { understood: false } },
+  { question: 'who is the payments rockstar?', expect: { understood: false } },
+  { question: 'who is the highest paid person on the team?', expect: { understood: false } },
+  { question: 'who has the best rapport with customers?', expect: { understood: false } },
+
+  /* ------- session 13: the next documented frontier (open gaps) ------- */
+  // Ideal behavior an ideal engine would have; the current one misses —
+  // this is the honest headroom that keeps the measured number in band.
+  // Two families again: (a) ranking-synonym leftovers (take for granted,
+  // engine of the team, dangerous dependency, hardest loss to absorb,
+  // quietly holds everything together, regret losing most, heart of the
+  // team, most pivotal, foundation, anchor, underestimate, biggest loss,
+  // critical asset, entrenched, holding the team together, bus number,
+  // collapse without); (b) impact wording gaps (knock-on and second-order
+  // effects as consequence wording, walks off the job, ghosts, gets
+  // pulled onto another team, travelling in the while-lane, shelved and
+  // pause as change verbs, reassigned in the if-lane).
+  { question: 'who do we take for granted?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is the engine of this team?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is our most dangerous dependency?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who would be the hardest loss to absorb?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who quietly holds everything together?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who are the people we would regret losing most?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is the heart of the team?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is the most pivotal person here?', expect: { understood: true, intent: 'top-risks' } },
+  { question: "who is the team's foundation?", expect: { understood: true, intent: 'top-risks' } },
+  { question: "who is the team's anchor?", expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who do we underestimate?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who would be the biggest loss?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is our most critical asset?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is the most entrenched person on the team?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who is holding the payments team together?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'what is our bus number?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'who would the team collapse without?', expect: { understood: true, intent: 'top-risks' } },
+  { question: 'what is the knock-on effect of the queue decision?', expect: { understood: true, intent: 'decision-impact', decisionId: 'd1' } },
+  { question: 'what are the second-order effects of the onboarding revamp?', expect: { understood: true, intent: 'epic-impact', epicId: 'ONB-1' } },
+  { question: 'what if alex walks off the job?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'what if alex ghosts us?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'what if alex gets pulled onto another team?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'what if alex gets reassigned?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'who is exposed while alex is travelling?', expect: { understood: true, intent: 'person-impact', personId: 'alex' } },
+  { question: 'what if the payments epic gets shelved?', expect: { understood: true, intent: 'epic-impact', epicId: 'PAY-1' } },
+  { question: 'what if we pause the auth epic?', expect: { understood: true, intent: 'epic-impact', epicId: 'AUTH-1' } },
 ];
 
 /* ------------------------------------------------------------------ *

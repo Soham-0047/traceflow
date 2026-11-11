@@ -275,6 +275,12 @@ const EPIC_DOMAIN_PHRASES: RegExp[] = [
   // ("payments") may anchor. "who is the team's backbone?" carries no epic
   // token and stays the people ranking.
   /\bbackbones?\b/i,
+  // "weak spot" and "lynchpin" (session 13) complete the scoped-risk-idiom
+  // family: "who is the payments weak spot?" and "who is the payments
+  // lynchpin?" anchor that epic's blast radius like bottleneck/SPOF, while
+  // the unscoped forms stay the people ranking.
+  /\bweak\s+spots?\b/i,
+  /\bl(?:in|yn)chpins?\b/i,
 ];
 /** Words that anchor a question to the decision domain. */
 const DECISION_DOMAIN_WORDS = new Set([

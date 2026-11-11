@@ -248,3 +248,91 @@ describe('scoreIntents and arbitration — session 11 lexicon and wording expans
     expect(arbitrateFreeQuestion(scoreIntents('which epics are most at risk right now?'))).toBeUndefined();
   });
 });
+
+describe('scoreIntents and arbitration — session 13 lexicon, while-lane and bare-leave fix', () => {
+  it('scores the new ranking synonyms as strong ranking', () => {
+    for (const q of [
+      'who would be impossible to replace?',
+      'who has the keys to the kingdom?',
+      'who are our knowledge hoarders?',
+      'who is our secret weapon?',
+      'who is the most central person on the team?',
+      'who is the institutional memory of the team?',
+      'who is the most relied-upon person here?',
+      'what is our biggest vulnerability as a team?',
+      'who would have the biggest shoes to fill?',
+      'who would the team struggle without the most?',
+      'who is our weak spot?',
+      'who is the most load-bearing person on the team?',
+      'who is carrying an unreasonable load?',
+      'who is the one we cannot lose?',
+      'who is our lynchpin?',
+    ]) {
+      expect(rankingStrong(scoreIntents(q)), q).toBe(true);
+    }
+  });
+
+  it('keeps the new phrases tight', () => {
+    // The kingdom needs its keys' destination; struggle needs the without;
+    // the replace family stays one-sided; the vulnerability family is
+    // superlative-tight; "most replaceable" asks the opposite ranking.
+    expect(rankingSignal(scoreIntents('who has the keys?'))).toBe(false);
+    expect(rankingSignal(scoreIntents('who struggles the most?'))).toBe(false);
+    expect(rankingSignal(scoreIntents('who is impossible?'))).toBe(false);
+    expect(rankingSignal(scoreIntents('who is the most replaceable person on the team?'))).toBe(false);
+    expect(rankingSignal(scoreIntents('do we have any vulnerability?'))).toBe(false);
+  });
+
+  it('scores the while-lane with a person as strong impact, and only with a be-verb', () => {
+    expect(impactStrong(scoreIntents('who is exposed while alex is on vacation?'))).toBe(true);
+    expect(impactStrong(scoreIntents('who covers the payments work while sam is on leave?'))).toBe(true);
+    expect(impactStrong(scoreIntents('who is exposed while priya is out of office?'))).toBe(true);
+    // Past tense is a historical fact, not a hypothetical; a bare fragment
+    // has no be-verb.
+    expect(impactSignal(scoreIntents('while alex was on vacation we shipped the payments work'))).toBe(false);
+    expect(impactSignal(scoreIntents('what can alex do while on vacation?'))).toBe(false);
+  });
+
+  it('scores ripple effects as consequence wording beside consequences and fallout', () => {
+    expect(impactStrong(scoreIntents('what are the ripple effects of the queue decision?'))).toBe(true);
+    expect(impactStrong(scoreIntents('what are the ripple effects of losing sam?'))).toBe(true);
+  });
+
+  it('scores the new availability wording inside the if-lane as strong impact', () => {
+    for (const q of [
+      'what if priya goes on parental leave?',
+      'what if priya takes maternity leave?',
+      'what if sam takes paternity leave?',
+      'what if priya takes a sabbatical?',
+      'what if alex gets poached?',
+      'what if alex gets sick?',
+      'what if alex falls ill?',
+      'what if alex is away next month?',
+      'who is exposed if alex goes on sabbatical?',
+    ]) {
+      expect(impactStrong(scoreIntents(q)), q).toBe(true);
+    }
+  });
+
+  it('does not fire the departure lane on the noun "leave" (bare-leave fix)', () => {
+    // The session-12 any-subject extension let the lazy filler read the
+    // noun "leave" as the departure verb; the scheduling shapes must not
+    // score impact.
+    for (const q of [
+      'when does priya go on parental leave?',
+      'when is alex on leave?',
+      'when will sam be back from leave?',
+    ]) {
+      expect(impactSignal(scoreIntents(q)), q).toBe(false);
+    }
+    // The genuine departure shapes still fire.
+    expect(impactStrong(scoreIntents('should we reassign tickets before priya leaves?'))).toBe(true);
+    expect(impactStrong(scoreIntents('what breaks when priya goes on sabbatical?'))).toBe(true);
+  });
+
+  it('scores rely-on as dependence wording, like depend-on', () => {
+    expect(impactSignal(scoreIntents('who relies on priya?'))).toBe(true);
+    expect(impactSignal(scoreIntents('who do we rely on the most?'))).toBe(true);
+    expect(impactSignal(scoreIntents('who does everyone rely on for the runbook?'))).toBe(true);
+  });
+});
