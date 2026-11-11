@@ -21,6 +21,21 @@ describe('matchPerson', () => {
     expect(matchPerson(sampleGraph, 'what is the risk around Alx?').person?.id).toBe('alex');
   });
 
+  it('never lets a 3-letter name absorb a longer ordinary word (session 12)', () => {
+    // The prefix lane is directional: a query fragment may extend INTO a
+    // longer name, but "same" is not a mention of Sam — "at the same time"
+    // once matched Sam Chen and produced a phantom person-risk answer.
+    const pair = matchPerson(sampleGraph, 'which two people should never be on vacation at the same time?');
+    expect(pair.person).toBeUndefined();
+    expect(pair.ambiguous).toBeUndefined();
+    // The fragment direction still works: "sam" reaches Samir Gupta too.
+    const withSamir: OrgGraph = {
+      ...sampleGraph,
+      people: [...sampleGraph.people, { id: 'samir', name: 'Samir Gupta' }],
+    };
+    expect(matchPerson(withSamir, 'what about sam?').ambiguous?.map((p) => p.id).sort()).toEqual(['sam', 'samir']);
+  });
+
   it('matches reordered name tokens', () => {
     expect(matchPerson(sampleGraph, 'what do we know about rivera alex').person?.id).toBe('alex');
   });
@@ -76,6 +91,14 @@ describe('matchEpic', () => {
 
   it('does not match an epic question that names none', () => {
     expect(matchEpic(sampleGraph, 'What breaks if the epic changes?').epicId).toBeUndefined();
+  });
+
+  it('anchors a scoped backbone question to the epic, like bottleneck (session 12)', () => {
+    expect(matchEpic(sampleGraph, 'who is the payments backbone?').epicId).toBe('PAY-1');
+    expect(matchEpic(sampleGraph, 'who is the backbone of the auth work?').epicId).toBe('AUTH-1');
+    // No epic token in the question: the team backbone stays a people
+    // question and matches no epic.
+    expect(matchEpic(sampleGraph, "who is the team's backbone?").epicId).toBeUndefined();
   });
 });
 

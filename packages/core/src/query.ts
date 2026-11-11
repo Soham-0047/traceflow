@@ -109,6 +109,16 @@ const COMMAND_PATTERNS: RegExp[] = [
   /\b(?:send|write|draft|forward)\s+(?:an?\s+|the\s+|my\s+|our\s+)?(?:message|messages|email|e-mail|dm|reminder|memo|slack)\b/i,
   /\b(?:can|could)\s+(?:you|we|i)\s+(?:ping|message|email|call|text|invite|remind|book|schedule)\b/i,
   /\bplease\s+(?:ping|message|email|call|text|invite|remind|book|schedule)\b/i,
+  // "keep alex in the loop on the payments work" is a notification request,
+  // not a who-needs-to-know question: without this gate the engine answers
+  // Alex's risk profile (session 12 probe caught exactly that). The
+  // imperative "keep" opens the sentence — optionally after "please" or
+  // "can/could you" — so anchoring on the start refuses the request while
+  // the question forms keep their route: "who needs to be in the loop on
+  // the payments work?" and "who should we keep in the loop?" both lead
+  // with a wh-word, not the imperative.
+  /^(?:please\s+)?keep\s+[^.?!]{0,40}?\bin\s+the\s+loop\b/i,
+  /^(?:can|could)\s+you\s+keep\s+[^.?!]{0,40}?\bin\s+the\s+loop\b/i,
 ];
 
 /** True when the input is a request to perform an action, not a question the engine can answer. */

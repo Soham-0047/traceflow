@@ -42,15 +42,43 @@ const IMPACT: Signal[] = [
   // is out sick?" — illness and leave are temporary unavailability, the same
   // hypothetical the blast radius answers. Kept inside the if-lane so a bare
   // "sam is out sick today" (a statement, not a question) scores nothing.
-  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|quits|resigns|retires|is unavailable|becomes unavailable|is out sick|calls in sick|is on vacation|is on leave|goes on leave|got hit|gets hit|changes|changed|is cancelled|is canceled|gets cancelled|gets canceled|is reversed|gets reversed|is superseded|gets superseded|is descoped|gets descoped|is dropped|gets dropped|gets? deprioritized|is deprioritized|was deprioritized)\b/i, weight: 3 },
-  { re: /\b(?:before|when)\s+(?:he|she|they)\s+(?:leaves?|left|goes|quit|quits|resigns?)\b/i, weight: 3 },
+  // Session 12: "is out of office" joins the availability list, and the
+  // state verbs (cancelled, superseded, reversed, descoped, dropped,
+  // deprioritized) accept is/gets/got/was/were — "how bad would it be if the
+  // payments epic got cancelled?" — while bare "quit", "resigned",
+  // "retired" and "departed" join the departure verbs ("if sam quit" is
+  // both past and present plural). Bare "leave" stays out: "if they leave"
+  // only ever appears without a name, and "if we leave the work open" is a
+  // different hypothetical than a departure.
+  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|departed|quit|quits|resigns|resigned|retires|retired|is unavailable|becomes unavailable|is out sick|is out of office|calls in sick|is on vacation|is on leave|goes on leave|got hit|gets hit|changes|changed|(?:is|gets?|got|was|were)\s+(?:cancelled|canceled|reversed|superseded|descoped|dropped|deprioritized))\b/i, weight: 3 },
+  // The when-lane: same hypothetical as the if-lane, but anchored by "when"
+  // or "before". Extended in session 12 from pronouns-only ("before he
+  // leaves") to any subject ("when alex is out of office"): the lazy filler
+  // is bounded and the availability words must follow a be-verb, so "when is
+  // alex on leave?" (a scheduling question) and "when will sam be back from
+  // leave?" do not fire — only "when <someone> is out of office / on leave
+  // / out sick / on vacation / unavailable" does.
+  { re: /\bwhen\s+[^.?!]{0,32}?\s(?:is|are)\s+(?:out\s+of\s+(?:office|sick)|on\s+(?:leave|vacation)|unavailable)\b/i, weight: 3 },
+  { re: /\b(?:before|when)\s+[^.?!]{0,32}?\s(?:leaves?|left|goes|quit|quits|resigns?|resigned|retires?|retired)\b/i, weight: 3 },
   { re: /\b(?:hit by a bus|bus factor)\b/i, weight: 3 },
   { re: /\b(?:offboard(?:ing|s)?|handover|hand-off|handoff|succession)\b/i, weight: 3 },
   // Consequence wording: "what are the consequences of priya leaving?" asks
   // for the blast radius without any if-then verb pattern firing. "fallout"
-  // (session 11) is the same family and just as strong.
+  // (session 11) and "implications" (session 12) are the same family and
+  // just as strong.
   { re: /\bconsequences?\b/i, weight: 3 },
   { re: /\bfallout\b/i, weight: 3 },
+  { re: /\bimplications?\b/i, weight: 3 },
+  // Who-needs-to-know wording: "who needs to be in the loop on the payments
+  // work?" asks for the blast radius report's who-needs-to-know section —
+  // epic, decision or person. Needs/must/should + be keeps it a question
+  // about stakeholders; the request form ("keep alex in the loop") is a
+  // command and is refused by the command guard before matching. The keep
+  // QUESTION ("who should we keep in the loop?") is the same ask with a
+  // different verb, so it anchors on "who" — the imperative can never fire
+  // this signal, with or without the guard.
+  { re: /\b(?:needs?|must|should)\s+(?:to\s+)?be\s+in\s+the\s+loop\b/i, weight: 3 },
+  { re: /\bwho\s+(?:else\s+)?(?:should|must|do|does|can|would)\s+(?:we|you|i)\s+keep\s+[^.?!]{0,40}?\bin\s+the\s+loop\b/i, weight: 3 },
   // A bottleneck question is a blast-radius question in disguise: "who is
   // the bottleneck on the auth epic?" wants the epic's impact report.
   { re: /\bbottleneck\b/i, weight: 3 },
@@ -59,11 +87,13 @@ const IMPACT: Signal[] = [
   { re: /\b(?:without|unavailable|loses?|losing|lost)\b/i, weight: 2 },
   { re: /\b(?:breaks?|stalls?|blocked|orphaned?)\b/i, weight: 2 },
   // Change-verbs as actions ("we cancel", "superseding", "plan to reverse",
-  // "we deprioritize") — but NOT past participles used as state ("the decision
-  // is superseded", "the epic was deprioritized"), which describe how things
-  // are, not a hypothetical change. The 'ed' forms of deprioritize live only
-  // inside the if-lane above, where a hypothetical is explicit.
-  { re: /\b(?:cancel|supersede|reverse|descope)(?:s|ing)?\b|\b(?:cancelling|canceling|superseding|reversing|descoping)\b|\bdeprioriti[sz](?:e|es|ing)\b/i, weight: 2 },
+  // "we deprioritize", "we drop") — but NOT past participles used as state
+  // ("the decision is superseded", "the epic was deprioritized", "the
+  // revamp was dropped"), which describe how things are, not a hypothetical
+  // change. The 'ed' forms live only inside the if-lane above, where a
+  // hypothetical is explicit. "dropping" needs its own alternation (drop +
+  // "ping" is "droping", a misspelling).
+  { re: /\b(?:cancel|supersede|reverse|descope|drop)(?:s|ing)?\b|\b(?:cancelling|canceling|superseding|reversing|descoping|dropping)\b|\bdeprioriti[sz](?:e|es|ing)\b/i, weight: 2 },
   { re: /\bchang(?:e|es|ed|ing)\b/i, weight: 2 },
   { re: /\bdepend(?:s|ent|ents|ency|encies)?\b/i, weight: 2 },
   { re: /\bwhat if\b/i, weight: 1 },
@@ -80,7 +110,7 @@ const TOP_RISKS: Signal[] = [
   { re: /\bsingle points? of failure\b/i, weight: 3 },
   { re: /\birreplaceable\b/i, weight: 3 },
   { re: /\binstitutional\s+knowledge\b/i, weight: 3 },
-  { re: /\b(?:most\s+)?critical\s+(?:person|people|member|teammate|employee|engineer)s?\b/i, weight: 3 },
+  { re: /\b(?:most\s+)?critical\s+(?:person|people|member|teammate|employee|engineer)s?\b|\b(?:most\s+)?(?:important|essential|vital|crucial|valuable)\s+(?:person|people|member|teammate|employee|engineer|player)s?\b/i, weight: 3 },
   { re: /\bsuccession\s+plan/i, weight: 3 },
   // "what is the highest-impact thing we could lose?" — the superlative of
   // impact over the whole org is the ranking question, not one blast radius.
@@ -108,6 +138,26 @@ const TOP_RISKS: Signal[] = [
   { re: /\btribal\s+knowledge\b/i, weight: 3 },
   { re: /\bspread\s+(?:(?:the|too)\s+)?thin(?:nest|ner)?\b/i, weight: 3 },
   { re: /\bnever\s+want\s+to\s+lose\b/i, weight: 3 },
+  // Session 12 frontier closures: nine more ways chat asks for the risk
+  // ranking, each phrase-tight so near-miss wordings keep refusing. "most
+  // important/valuable ... person/player" extends the critical-person
+  // family; "afford to lose" covers the cannot/can't/least/not variants;
+  // "glue that holds" (with of/on/in forms) and "backbone" are the
+  // load-bearing idioms; "miss the most" is the loss phrasing ("misses the
+  // most standups" must not fire, so the verb stays singular "miss");
+  // "takes the most with them" (one optional middle word: "the most
+  // knowledge with them") is what walks out the door; "never lose" carries
+  // its own idiom so "who do we want to lose?" keeps refusing; and the
+  // go-to person family is "go-to person" plus "everyone goes to" (the
+  // person-everyone-goes-to shape).
+  { re: /\bafford\s+to\s+lose\b/i, weight: 3 },
+  { re: /\bglue\s+(?:that\s+)?(?:holds|of|on|in)\b/i, weight: 3 },
+  { re: /\bmiss\s+the\s+most\b/i, weight: 3 },
+  { re: /\btakes?\s+the\s+most\s+(?:[a-z]+\s+)?with\s+(?:them|him|her)\b/i, weight: 3 },
+  { re: /\bnever\s+lose\b/i, weight: 3 },
+  { re: /\bbackbone\b/i, weight: 3 },
+  { re: /\bgo[-\s]to\s+(?:person|people)\b/i, weight: 3 },
+  { re: /\beveryone\s+go(?:es)?\s+to\b/i, weight: 3 },
   { re: /\bat\s+risk\b/i, weight: 2 },
   { re: /\brisks?\b|\bexposure\b/i, weight: 2 },
   { re: /\brank(?:ed|ing|s)?\b/i, weight: 1 },

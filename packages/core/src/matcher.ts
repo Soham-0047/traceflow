@@ -121,10 +121,21 @@ function rawWords(question: string): string[] {
     .map((w) => w.toLowerCase());
 }
 
-/** True when one token is a prefix of the other (both at least 3 chars). */
-function prefixMatch(a: string, b: string): boolean {
-  if (a.length < 3 || b.length < 3) return false;
-  return a.startsWith(b) || b.startsWith(a);
+/**
+ * Prefix containment, DIRECTIONAL: a short query fragment may extend into
+ * a longer name ("sam" -> "samir", "alx" -> "alex", "pri" -> "priya"),
+ * and a name of at least 4 characters may be extended by a longer query
+ * word ("alexandra" -> "alex"). But a 3-character name never absorbs a
+ * longer word that starts with it: "same" and "sample" are different
+ * words than Sam, not truncations of it — "at the same time" once matched
+ * Sam Chen through the symmetric prefix lane and produced a phantom
+ * person-risk answer. The fragment direction is enough for real traffic:
+ * nobody types "samuel" meaning a recorded "Sam Chen".
+ */
+function prefixMatch(word: string, candidate: string): boolean {
+  if (candidate.startsWith(word) && word.length >= 3) return true;
+  if (word.startsWith(candidate) && candidate.length >= 4) return true;
+  return false;
 }
 
 /**
@@ -259,6 +270,11 @@ const EPIC_DOMAIN_WORDS = new Set([
 const EPIC_DOMAIN_PHRASES: RegExp[] = [
   /\bsingle\s+points?\s+of\s+failure\b/i,
   /\bbottlenecks?\b/i,
+  // "backbone" (session 12) is the same shape: "who is the payments
+  // backbone?" asks for that epic's blast radius, so the distinctive token
+  // ("payments") may anchor. "who is the team's backbone?" carries no epic
+  // token and stays the people ranking.
+  /\bbackbones?\b/i,
 ];
 /** Words that anchor a question to the decision domain. */
 const DECISION_DOMAIN_WORDS = new Set([

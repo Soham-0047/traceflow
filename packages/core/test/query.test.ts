@@ -296,3 +296,70 @@ describe('answerQuery — session 11: the decision scope join', () => {
     }
   });
 });
+
+describe('answerQuery — session 12: frontier closures, guard and matcher scope', () => {
+  it('answers the fourteen session-11 gaps with the right intent and entity', () => {
+    const cases: Array<[string, string, string | null]> = [
+      ['who is the most important person here?', 'top-risks', null],
+      ['who are the people we cannot afford to lose?', 'top-risks', null],
+      ['who is the glue that holds this team together?', 'top-risks', null],
+      ['who takes the most with them if they leave?', 'top-risks', null],
+      ['who must we never lose?', 'top-risks', null],
+      ['who is the person everyone goes to with questions?', 'top-risks', null],
+      ['what if we drop the onboarding revamp?', 'epic-impact', 'ONB-1'],
+      ['what are the implications of the queue decision?', 'decision-impact', 'd1'],
+      ['who is exposed when alex is out of office?', 'person-impact', 'alex'],
+      ['how bad would it be if sam quit?', 'person-impact', 'sam'],
+      ['who needs to be in the loop on the payments work?', 'epic-impact', 'PAY-1'],
+    ];
+    for (const [q, intent, id] of cases) {
+      const result = answerQuery(sampleGraph, q);
+      expect(result.understood, q).toBe(true);
+      expect(result.intent, q).toBe(intent);
+      if (id) {
+        const data = result.data as { personId?: string; epic?: { id: string }; decision?: { id: string } };
+        expect(data.personId ?? data.epic?.id ?? data.decision?.id, q).toBe(id);
+      }
+    }
+  });
+
+  it('routes a scoped backbone to the epic blast radius; an unscoped one stays the ranking', () => {
+    const scoped = answerQuery(sampleGraph, 'who is the payments backbone?');
+    expect(scoped.understood).toBe(true);
+    expect(scoped.intent).toBe('epic-impact');
+    expect((scoped.data as { epic?: { id: string } }).epic?.id).toBe('PAY-1');
+    const unscoped = answerQuery(sampleGraph, "who is the team's backbone?");
+    expect(unscoped.understood).toBe(true);
+    expect(unscoped.intent).toBe('top-risks');
+  });
+
+  it('refuses keep-in-the-loop requests but answers the who-question form', () => {
+    for (const q of [
+      'keep alex in the loop on the payments work',
+      'keep me in the loop on the payments work',
+      'please keep sam in the loop?',
+      'can you keep priya in the loop on the auth work?',
+    ]) {
+      const result = answerQuery(sampleGraph, q);
+      expect(result.understood, q).toBe(false);
+      expect(result.answer, q).toContain('looks like a request');
+      expect(result.evidence, q).toEqual([]);
+    }
+    // The question forms keep their routes: the needs form and the keep
+    // form both ask who needs to know about the payments work.
+    expect(answerQuery(sampleGraph, 'who needs to be in the loop on the payments work?').intent).toBe('epic-impact');
+    const keepQuestion = answerQuery(sampleGraph, 'who should we keep in the loop on the payments work?');
+    expect(keepQuestion.understood).toBe(true);
+    expect(keepQuestion.intent).toBe('epic-impact');
+    expect((keepQuestion.data as { epic?: { id: string } }).epic?.id).toBe('PAY-1');
+  });
+
+  it('does not hallucinate a person from an ordinary word', () => {
+    // "at the same time" once matched Sam Chen through the symmetric
+    // prefix lane; the pair question must refuse, not answer Sam's profile.
+    const result = answerQuery(sampleGraph, 'which two people should never be on vacation at the same time?');
+    expect(result.understood).toBe(false);
+    expect(result.evidence).toEqual([]);
+    expect(result.suggestions).toBeDefined();
+  });
+});
