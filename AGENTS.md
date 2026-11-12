@@ -16,7 +16,7 @@ Several agents may work here at once. Claim a workstream in `docs/PROGRESS.md`, 
 ## Layout
 | Path | What |
 | --- | --- |
-| `packages/core` | Pure TypeScript engine: the validation boundary (`validate.ts`, strict + best-effort), the shared `GraphIndex` + `graphFingerprint`, risk scoring, epic lineage, overview aggregates, decision tracing, change impact, the deterministic answer layer (`query.ts`), the grounding guard (`grounding.ts`), Jira/Confluence normalizers, sample fixtures. Zero runtime dependencies, browser-safe. |
+| `packages/core` | Pure TypeScript engine: the validation boundary (`validate.ts`, strict + best-effort), the shared `GraphIndex` + `graphFingerprint`, risk scoring, epic lineage, overview aggregates, decision tracing, change impact, the deterministic answer layer (`query.ts`), the grounding guard (`grounding.ts`), Jira/Confluence normalizers, sample fixtures, and the compromise-backed analysis layer (`nlp.ts`) of the in-house NLU. One runtime dependency (`compromise`, MIT, offline, deterministic — the POS gates and idiom lexicon; see `THIRD_PARTY_NOTICES.md`), browser-safe. |
 | `packages/ui` | The shared investigation UI (`<Workbench adapter={...} />`) with the Hallmark styles and the UI tests. Consumed from source via an alias. |
 | `demo` | Thin Vite host that serves `@traceflow/ui` on sample data (published to GitHub Pages at `/demo/`). |
 | `app` | Forge app scaffold (TF-01, TF-04): manifest with a **placeholder app id**, `getGraph` resolver, unit-tested KVS TTL cache, Custom UI hosting the Workbench. Needs `forge register` by Soham (see `app/README.md`). |

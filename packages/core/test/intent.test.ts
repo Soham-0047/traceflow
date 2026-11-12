@@ -336,3 +336,89 @@ describe('scoreIntents and arbitration — session 13 lexicon, while-lane and ba
     expect(impactSignal(scoreIntents('who does everyone rely on for the runbook?'))).toBe(true);
   });
 });
+
+describe('scoreIntents — session 14: consequence wording, transfer verbs, ranking synonyms', () => {
+  it('scores the knock-on and second-order consequence wording as strong impact', () => {
+    expect(impactStrong(scoreIntents('what is the knock-on effect of the queue decision?'))).toBe(true);
+    expect(impactStrong(scoreIntents('what are the knock-on effects of losing alex?'))).toBe(true);
+    expect(impactStrong(scoreIntents('what are the second-order effects of the onboarding revamp?'))).toBe(true);
+    // The consequence family without the hyphenated compounds stays put.
+    expect(impactSignal(scoreIntents('what is the effect of the queue decision?'))).toBe(false);
+  });
+
+  it('scores the departure idioms and transfer verbs inside the if-lane', () => {
+    for (const q of [
+      'what if alex walks off the job?',
+      'what if alex ghosts us?',
+      'what if sam ghosts the team?',
+      'what if alex gets pulled onto another team?',
+      'what if priya got reassigned?',
+    ]) {
+      expect(impactStrong(scoreIntents(q)), q).toBe(true);
+    }
+  });
+
+  it('scores travelling in the while-lane as availability hypothetical', () => {
+    expect(impactStrong(scoreIntents('who is exposed while alex is travelling?'))).toBe(true);
+    expect(impactStrong(scoreIntents('who is exposed while priya is traveling?'))).toBe(true);
+    // Past tense is a fact, not a hypothetical.
+    expect(impactSignal(scoreIntents('while alex was travelling we shipped the payments work'))).toBe(false);
+  });
+
+  it('scores shelved and pause as change verbs on epics', () => {
+    expect(impactStrong(scoreIntents('what if the payments epic gets shelved?'))).toBe(true);
+    expect(impactStrong(scoreIntents('what if we pause the auth epic?'))).toBe(true);
+    expect(impactStrong(scoreIntents('what if we shelve the onboarding revamp?'))).toBe(true);
+    // The participle as state description does not fire the change verb.
+    expect(impactSignal(scoreIntents('the onboarding revamp was shelved last quarter'))).toBe(false);
+  });
+
+  it('scores the session-14 ranking-synonym family above the threshold', () => {
+    for (const q of [
+      'who do we take for granted?',
+      'who is the engine of this team?',
+      'who is our most dangerous dependency?',
+      'who would be the hardest loss to absorb?',
+      'who quietly holds everything together?',
+      'who are the people we would regret losing most?',
+      'who is the heart of the team?',
+      'who is the most pivotal person here?',
+      "who is the team's foundation?",
+      "who is the team's anchor?",
+      'who do we underestimate?',
+      'who would be the biggest loss?',
+      'who is our most critical asset?',
+      'who is the most entrenched person on the team?',
+      'who is holding the payments team together?',
+      'what is our bus number?',
+      'who would the team collapse without?',
+    ]) {
+      expect(rankingStrong(scoreIntents(q)), q).toBe(true);
+    }
+  });
+
+  it('keeps the near-miss shapes of the new ranking idioms refusing', () => {
+    // The effort shapes, the bare idioms without the possessive, and the
+    // building senses must not clear the ranking threshold.
+    for (const q of [
+      'who takes the most for granted?',
+      'who regrets losing the most standups?',
+      'who is the engine?',
+      'what is the engine made of?',
+      'what is our foundation made of?',
+      'when is the bus number?',
+    ]) {
+      expect(rankingStrong(scoreIntents(q)), q).toBe(false);
+    }
+  });
+
+  it('does not let the noun "leave" fire the departure lane (POS gate)', () => {
+    // The gate's scope is the taught singular noun: a bare "leave" that
+    // compromise tags as a noun inside an if-clause must not carry the
+    // departure lane's weight. The plural "leaves" is genuinely two-word
+    // ambiguous (autumn leaves vs "before priya leaves?") and compromise
+    // tags both as nouns, so it stays OUT of the gate — the if-lane's own
+    // context words carry that traffic instead.
+    expect(impactSignal(scoreIntents('if the leave is approved, who covers the payments work?'))).toBe(false);
+  });
+});

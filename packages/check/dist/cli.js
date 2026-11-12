@@ -1022,17 +1022,20 @@ var EVAL_CORPUS_HARD = [
   { question: "who is the highest paid person on the team?", expect: { understood: false } },
   { question: "who has the best rapport with customers?", expect: { understood: false } },
   /* ------- session 13: the next documented frontier (open gaps) ------- */
-  // Ideal behavior an ideal engine would have; the current one misses —
-  // this is the honest headroom that keeps the measured number in band.
-  // Two families again: (a) ranking-synonym leftovers (take for granted,
-  // engine of the team, dangerous dependency, hardest loss to absorb,
-  // quietly holds everything together, regret losing most, heart of the
-  // team, most pivotal, foundation, anchor, underestimate, biggest loss,
-  // critical asset, entrenched, holding the team together, bus number,
-  // collapse without); (b) impact wording gaps (knock-on and second-order
-  // effects as consequence wording, walks off the job, ghosts, gets
-  // pulled onto another team, travelling in the while-lane, shelved and
-  // pause as change verbs, reassigned in the if-lane).
+  // Moved into the regression tier by session 14 (see below): every phrasing
+  // here was probed end to end against the full AnswerResult before the
+  // label flipped; the compromise-backed intent layer (nlp.ts) closed the
+  // whole frontier in one pass.
+  /* ------- session 14: the frontier closed, now regression-locked ------- */
+  // The ranking-synonym family: take for granted, engine of the team,
+  // dangerous dependency, hardest loss to absorb / biggest loss, quietly
+  // holds everything together / holding the team together, regret losing,
+  // heart of the team, most pivotal, foundation and anchor (possessive
+  // forms), underestimate (the who-do-we shape), critical asset, entrenched,
+  // bus number, collapse without. Each phrase-tight: the near-miss shapes
+  // ("who takes the most for granted?", "when is the bus number?", bare
+  // "foundation"/"anchor" without the possessive, "who underestimates the
+  // risk?") stay refusing in the boundary block below.
   { question: "who do we take for granted?", expect: { understood: true, intent: "top-risks" } },
   { question: "who is the engine of this team?", expect: { understood: true, intent: "top-risks" } },
   { question: "who is our most dangerous dependency?", expect: { understood: true, intent: "top-risks" } },
@@ -1050,6 +1053,11 @@ var EVAL_CORPUS_HARD = [
   { question: "who is holding the payments team together?", expect: { understood: true, intent: "top-risks" } },
   { question: "what is our bus number?", expect: { understood: true, intent: "top-risks" } },
   { question: "who would the team collapse without?", expect: { understood: true, intent: "top-risks" } },
+  // The impact wording family: knock-on and second-order effects beside
+  // consequences/fallout/implications/ripple effects; walks off the job and
+  // ghosts as departure idioms; gets pulled onto another team and gets
+  // reassigned as transfer verbs; travelling in the while-lane; shelved and
+  // pause as change verbs (POS-gated by nlp.ts so the noun senses stay out).
   { question: "what is the knock-on effect of the queue decision?", expect: { understood: true, intent: "decision-impact", decisionId: "d1" } },
   { question: "what are the second-order effects of the onboarding revamp?", expect: { understood: true, intent: "epic-impact", epicId: "ONB-1" } },
   { question: "what if alex walks off the job?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
@@ -1058,7 +1066,141 @@ var EVAL_CORPUS_HARD = [
   { question: "what if alex gets reassigned?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
   { question: "who is exposed while alex is travelling?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
   { question: "what if the payments epic gets shelved?", expect: { understood: true, intent: "epic-impact", epicId: "PAY-1" } },
-  { question: "what if we pause the auth epic?", expect: { understood: true, intent: "epic-impact", epicId: "AUTH-1" } }
+  { question: "what if we pause the auth epic?", expect: { understood: true, intent: "epic-impact", epicId: "AUTH-1" } },
+  /* ------- session 14: boundary checks for the new signals ------- */
+  // The near-miss wordings the closures must not absorb: the effort shapes
+  // ("who takes the most for granted?", "who regrets losing the most
+  // standups?"), the bare idiom without the possessive ("when is the bus
+  // number?", "who is the engine?", "what is our foundation made of?"), the
+  // building senses ("what is the engine made of?"), and the generic-risk
+  // third-person ("who underestimates the risk?" routes to the ranking
+  // because a bare "risk" who-question is the people ranking — see the
+  // generic risk word's weight-2 signal, pre-session-14 behavior).
+  { question: "who takes the most for granted?", expect: { understood: false } },
+  { question: "what is the engine made of?", expect: { understood: false } },
+  { question: "who is the engine?", expect: { understood: false } },
+  { question: "what is our foundation made of?", expect: { understood: false } },
+  { question: "when is the bus number?", expect: { understood: false } },
+  { question: "who regrets losing the most standups?", expect: { understood: false } },
+  // Scoped shapes: "who anchored the payments epic?" is an epic-anchored
+  // question (the anchor noun + a domain word), pre-existing matcher
+  // behavior; "who do we take for granted on payments?" rides the who-do-we
+  // shape to the ranking.
+  { question: "who anchored the payments epic?", expect: { understood: true, intent: "epic-lineage", epicId: "PAY-1" } },
+  { question: "who do we take for granted on payments?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who underestimates the risk?", expect: { understood: true, intent: "top-risks" } },
+  /* ------- session 14: variant regressions for the closures ------- */
+  // Every closed phrasing re-probed in its other grammatical shapes: the
+  // possessive foundation/anchor with org/company, the entrenchment and
+  // pivotal superlatives without "person", the loss family's worst/toughest
+  // variants, the cohesion family's "held together" past form, ghosting in
+  // its third-person verb shape, the transfer verbs' gets/got variants, the
+  // knock-on hyphen and spacing variants, shelved/paused with the state-verb
+  // forms, and travelling in its US spelling.
+  { question: "who is the company's foundation?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the org's anchor?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the most pivotal engineer here?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the most pivotal?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who would be the worst loss to absorb?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is our most dangerous dependency on payments?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who holds the team together?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is quietly holding everything together?", expect: { understood: true, intent: "top-risks" } },
+  { question: "what if sam ghosts the team?", expect: { understood: true, intent: "person-impact", personId: "sam" } },
+  { question: "what if priya got reassigned?", expect: { understood: true, intent: "person-impact", personId: "priya" } },
+  { question: "what if sam gets pulled onto a different team?", expect: { understood: true, intent: "person-impact", personId: "sam" } },
+  { question: "what are the knock-on effects of the token format decision?", expect: { understood: true, intent: "decision-impact", decisionId: "d2" } },
+  { question: "what is the second-order effect of losing priya?", expect: { understood: true, intent: "person-impact", personId: "priya" } },
+  { question: "what if the auth epic is shelved?", expect: { understood: true, intent: "epic-impact", epicId: "AUTH-1" } },
+  { question: "what if we shelve the onboarding revamp?", expect: { understood: true, intent: "epic-impact", epicId: "ONB-1" } },
+  { question: "what if the payments epic gets paused?", expect: { understood: true, intent: "epic-impact", epicId: "PAY-1" } },
+  { question: "who is exposed while priya is traveling?", expect: { understood: true, intent: "person-impact", personId: "priya" } },
+  { question: "who does the engine of the payments work rely on?", expect: { understood: true, intent: "epic-impact", epicId: "PAY-1" } },
+  // Round-2 probe discoveries that already worked (regression-locked here):
+  // glue-that-holds rides the session-12 glue idiom, ghosts-the-team the
+  // session-14 ghost verb, knock-on-of-losing the new consequence wording
+  // on a person, shelved in its we-shelve action form, burns-out through
+  // the when-lane, and the fill-in/steps-in/picks-up-slack coverage shapes.
+  { question: "who is the glue that holds the payments team together?", expect: { understood: true, intent: "top-risks" } },
+  { question: "what are the knock-on effects of losing alex?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "what happens when alex finally burns out?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "who fills in when alex is away?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "who steps in if priya is unavailable?", expect: { understood: true, intent: "person-impact", personId: "priya" } },
+  { question: "who picks up the slack if alex resigns?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "what happens if alex wins the lottery and quits?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "who is the human single point of failure?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the load-bearing wall of the payments team?", expect: { understood: true, intent: "top-risks" } },
+  { question: "what if the payments epic slips?", expect: { understood: true, intent: "epic-lineage", epicId: "PAY-1" } },
+  /* ------- session 14: more unanswerable-but-plausible, must refuse ------- */
+  // Humility, mentorship, coding speed/quality, soft skills: the records
+  // cannot rank any of these, and the ranking lexicon must not stretch.
+  { question: "who is the most humble person here?", expect: { understood: false } },
+  { question: "who is the best mentor on the team?", expect: { understood: false } },
+  { question: "who is the fastest coder here?", expect: { understood: false } },
+  { question: "who writes the cleanest code?", expect: { understood: false } },
+  { question: "who has the best soft skills?", expect: { understood: false } },
+  // New chat-realistic shapes that must keep refusing (session 14 round 2):
+  // culture-fit, availability-preference, seniority, compensation-adjacent,
+  // respect, and interest questions — none of these are rankable from the
+  // connected records, and the honest answer is the miss.
+  { question: "who is the best culture fit here?", expect: { understood: false } },
+  { question: "who is most likely to relocate for a new job?", expect: { understood: false } },
+  { question: "who is the most senior engineer on the team?", expect: { understood: false } },
+  { question: "who deserves the next promotion?", expect: { understood: false } },
+  { question: "who is the most respected person on the team?", expect: { understood: false } },
+  { question: "who is most invested in the payments work?", expect: { understood: true, intent: "epic-lineage", epicId: "PAY-1" } },
+  { question: "who enjoys their work the most?", expect: { understood: false } },
+  { question: "who has the best work-life balance?", expect: { understood: false } },
+  /* ------- session 14: the next documented frontier (open gaps) ------- */
+  // Ideal behavior an ideal engine would have; the current one misses — the
+  // honest headroom that keeps the measured number in band. Two families
+  // again, every candidate probed end to end before baking (three probe
+  // rounds; the phrasings that already worked — glue-of, human-SPOF,
+  // load-bearing wall, burns-out, lottery-quits, ghosts-the-team,
+  // off-sick's when-shape "who fills in when alex is away" — became
+  // regression cases instead of gaps).
+  // (a) the ranking-synonym leftovers: unsung hero, not-appreciate,
+  // thankless, overworked, carries-the-weight, bedrock, biggest-gap,
+  // nobody-else-replace, quiet-guardian, deepest-knowledge,
+  // difficult-to-substitute, unique-knowledge.
+  // (b) the impact/consequence leftovers: domino effect as consequence
+  // wording, gets sidelined, gets headhunted, during-possessive ("during
+  // alex's vacation"), moves abroad, relocates, is off sick, is
+  // hospitalised.
+  { question: "who is the unsung hero of this team?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who do we not appreciate enough?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who has the most thankless job here?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the most overworked person on the team?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who carries the weight of the whole team?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the team's bedrock?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who would leave the biggest gap behind?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who does nobody else replace?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the quiet guardian of our systems?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who holds the deepest knowledge here?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the most difficult to substitute?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who has the most unique knowledge?", expect: { understood: true, intent: "top-risks" } },
+  { question: "what is the domino effect of the queue decision?", expect: { understood: true, intent: "decision-impact", decisionId: "d1" } },
+  { question: "what if alex gets sidelined?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "what if alex gets headhunted?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "who is exposed during alex's vacation?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "what if alex moves abroad?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "what if priya relocates?", expect: { understood: true, intent: "person-impact", personId: "priya" } },
+  { question: "what if alex is off sick for a month?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "what if priya is hospitalised?", expect: { understood: true, intent: "person-impact", personId: "priya" } },
+  // Round-3 additions (each probed end to end): the fear/coverage family
+  // (scared to lose, impossible to cover for, no backup, understudy for
+  // nobody) and the British-availability whilst-on-holiday shape, plus the
+  // system-metaphor availability verbs (gets decommissioned, goes silent).
+  { question: "who are we most scared to lose?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who would be impossible to cover for?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who has no backup on this team?", expect: { understood: true, intent: "top-risks" } },
+  { question: "who is the understudy for nobody?", expect: { understood: true, intent: "top-risks" } },
+  { question: "what if alex gets decommissioned?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  { question: "what if priya goes silent?", expect: { understood: true, intent: "person-impact", personId: "priya" } },
+  { question: "who is exposed whilst alex is on holiday?", expect: { understood: true, intent: "person-impact", personId: "alex" } },
+  /* ------- session 14: round-3 boundary checks (already refusing) ------- */
+  { question: "who appreciates whom?", expect: { understood: false } },
+  { question: "what is a bedrock?", expect: { understood: false } },
+  { question: "who carries the weight?", expect: { understood: false } }
 ];
 var EVAL_CORPUS_ALL = [...EVAL_CORPUS, ...EVAL_CORPUS_HARD];
 

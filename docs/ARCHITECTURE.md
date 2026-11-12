@@ -81,8 +81,8 @@ How the engine is built, and where each quality — fast, reliable, secure, neve
 
 ## The in-house NLU and its measured efficiency
 
-Understanding a question used to be exact-match regexes; it is now three small,
-dependency-free algorithm modules in `packages/core`, and their quality is a
+Understanding a question used to be exact-match regexes; it is now three small
+algorithm modules in `packages/core` plus one wrapped open-source tagger, and their quality is a
 **measured, CI-gated number**, not a vibe:
 
 | Module | What it does | Key ideas |
@@ -91,8 +91,10 @@ dependency-free algorithm modules in `packages/core`, and their quality is a
 | `matcher.ts` | WHICH entity (person, epic, decision) | fixed-score lanes (exact id 1.00 → full name 0.95 → all tokens typo-tolerant 0.90 → bare id word 0.80 → distinctive token 0.75); candidates ranked by (score desc, id asc) for determinism; ties within 0.10 are **ambiguous, never guessed**; a single distinctive title token only anchors a question when a domain word is present ("trace the auth epic" matches, "the payments service" does not), and the decision domain can also be carried by **phrases** — decide-verbs, "made the call", "move away from" — so "what did we decide on retries?" resolves without the noun "decision"; the token structures (name-token holders, title tokens, distinctive sets) are computed once per graph in a shared matcher index, like the engine's `GraphIndex` |
 | `intent.ts` | WHAT is asked | weighted word signals per intent (strong 3 / medium 2 / weak 1); entity-first arbitration — the matched entity decides the subject, the scores decide the shape; past participles ("is superseded") are states, not change hypotheses, so "when was X superseded" traces instead of exploding into impact; the risk lexicon covers the synonym families people actually use (single point of failure, irreplaceable, institutional knowledge, most critical person, succession plan, bus factor, highest-impact, weakest link, liability, carrying-the-most-context), and impact wording includes consequences-of, bottleneck, damage, availability clauses ("if sam is out sick/on leave") and "lost" |
 | `query.ts` | arbitration + honesty guards | the answer layer that combines matcher + intents into the eight intents; a **command guard** refuses scheduling/messaging requests before entity matching ("book a meeting with priya" must not produce her risk profile); a **plural-epic guard** refuses "which epics are most at risk?" instead of guessing the people ranking; **did-you-mean** suggestions are ranked per miss by intent affinity, named entities and token similarity, deterministically; the person risk reports ride a per-graph, weights-keyed memo so a warm "top risks" or overview is a map lookup (measured: 7k-record org, ~1.6 ms per warm question, 3–5× cache effect) |
+| `query.ts` | arbitration + honesty guards | the answer layer that combines matcher + intents into the eight intents; a **command guard** refuses scheduling/messaging requests before entity matching ("book a meeting with priya" must not produce her risk profile); a **plural-epic guard** refuses "which epics are most at risk?" instead of guessing the people ranking; **did-you-mean** suggestions are ranked per miss by intent affinity, named entities and token similarity, deterministically; the person risk reports ride a per-graph, weights-keyed memo so a warm "top risks" or overview is a map lookup (measured: 7k-record org, ~1.6 ms per warm question, 3–5× cache effect) |
+| `nlp.ts` | POS gates + idiom lexicon (session 14) | the engine's first runtime dependency — `compromise` (MIT, ~250 KB, zero transitive runtime deps, offline, no models) wrapped behind every engine contract: only the stable surfaces are exposed (POS tags, `.has()` idiom membership, person words — compromise's internal term ids are per-instance counters and never escape, so the determinism stage stays green); one analysis per question cached in a bounded LRU of 512 (~0.2 ms per cold call, e2e latency budgets intact); the domain lexicon is taught once (the availability NOUNS leave/sabbatical/vacation so the tagger can disambiguate noun from verb — the thing enumeration never could — plus the multiword idioms bus-number/knock-on-effect and the mistagged verb senses ghosts/shelved/travelling); used ONLY as gates: the regexes keep the semantics, the tags decide when a lazy lane may trust a word's grammatical role (the departure lane may not fire when the taught noun "leave" is present, tagged a noun, and no departure verb form exists) |
 
-**The efficiency metric.** `eval.ts` carries a 208-case labeled corpus — realistic
+**The efficiency metric.** `eval.ts` carries a 485-case labeled corpus — realistic
 phrasings per intent (typos, reordered titles, partial names, indirect language),
 unanswerable-but-plausible questions that must be refused honestly (including
 scheduling/messaging commands, which a person-naming engine would otherwise
@@ -109,15 +111,15 @@ decision blocking an epic's work, deprioritize as a change-verb, a scoped
 efficiency = cases handled correctly / total cases
 ```
 
-Measured: **94.7% (197/208)** — inside the tuned 88–95% band. The honest-miss
-group is 38/38: the engine never invents an answer to a question it cannot map.
+Measured: **94.4% (458/485)** — inside the tuned 88–95% band. The honest-miss
+group is 98/98: the engine never invents an answer to a question it cannot map.
 The number is gated twice: `eval.test.ts` fails below 88%, and e2e stage 11
 prints the summary and enforces the same floor. Closing a documented gap raises
 the number; the floor catches regressions when matcher or intent changes break
-real phrasings. Session 10 closed all nine session-9 gaps (the inflectional
-token lane and decide-verb domain phrases above), then grew the corpus by 30
-verified cases and documented the next eleven — capability up, number
-honestly in band.
+real phrasings. Sessions 10–13 each closed the previous frontier and grew the
+corpus with probed cases; session 14 closed all twenty-six session-13 gaps in
+one pass — the compromise POS gates plus the idiom lexicon — and documented the
+next twenty-seven, capability up, number honestly in band.
 
 The same matchers back the tool surfaces: the MCP resolvers (and any future
 connector) resolve `person: "Alexs Rivera"`, `epic: "pay-1"` or

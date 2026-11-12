@@ -9,7 +9,17 @@
  * The answer layer (query.ts) combines these scores with the entity match:
  * the entity decides the subject (person, epic, decision), the scores decide
  * the question shape (blast radius, ranking, overview, trace).
+ *
+ * Session 14: the layer gained its first open-source component — the
+ * compromise POS tagger (nlp.ts), used ONLY as a gate on the lazy lanes and
+ * a lexicon for the multiword domain idioms ("bus number", "knock-on
+ * effect"). The regexes stay the source of truth for what a wording means;
+ * the POS tags decide when a lazy lane may trust a word's grammatical role
+ * (the session-13 bare-"leave" bug class, mechanized). See nlp.ts for the
+ * determinism, cost and honesty contracts that wrapping enforces.
  */
+
+import { analyzeQuestion } from './nlp.js';
 
 export interface IntentScores {
   /** "What breaks if X leaves / changes / is superseded?" */
@@ -57,7 +67,14 @@ const IMPACT: Signal[] = [
   // goes on parental leave?", "what if priya takes a sabbatical?"), and
   // "is/gets poached" ("what if alex gets poached?"), the talent-loss
   // hypothetical.
-  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|departed|quit|quits|resigns|resigned|retires|retired|is unavailable|becomes unavailable|is out sick|gets sick|falls ill|is out of office|calls in sick|is on vacation|is on leave|goes on leave|is away|will be away|got hit|gets hit|changes|changed|(?:is|goes)\s+on\s+(?:parental|maternity|paternity)\s+leave|(?:is|goes)\s+on\s+sabbatical|takes\s+(?:an?\s+)?(?:(?:parental|maternity|paternity)\s+)?leave|takes\s+(?:an?\s+)?sabbatical|(?:is|gets?|got|was|were)\s+poached|(?:is|gets?|got|was|were)\s+(?:cancelled|canceled|reversed|superseded|descoped|dropped|deprioritized))\b/i, weight: 3 },
+  // Session 14: the talent-loss and transfer shapes grow — "walks off the
+  // job" and "ghosts us" (the abrupt and silent departure idioms), and the
+  // transfer verbs "gets pulled onto another team" and "gets reassigned"
+  // (organizationally moved, same blast radius). The POS tagger (nlp.ts)
+  // gates "ghosts"/"shelved" as VERBS so the noun senses ("the game
+  // ghosts", "the shelved state") cannot fire the lane — the first
+  // compromise-backed signals in this table.
+  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|departed|quit|quits|resigns|resigned|retires|retired|is unavailable|becomes unavailable|is out sick|gets sick|falls ill|is out of office|calls in sick|is on vacation|is on leave|goes on leave|is away|will be away|got hit|gets hit|changes|changed|walks\s+off\s+the\s+job|ghosts?\s+(?:us|the\s+team)|gets?\s+pulled\s+onto\s+(?:another|a\s+different|another\s+team)|gets?\s+reassigned|got\s+reassigned|(?:is|goes)\s+on\s+(?:parental|maternity|paternity)\s+leave|(?:is|goes)\s+on\s+sabbatical|takes\s+(?:an?\s+)?(?:(?:parental|maternity|paternity)\s+)?leave|takes\s+(?:an?\s+)?sabbatical|(?:is|gets?|got|was|were)\s+poached|(?:is|gets?|got|was|were)\s+(?:cancelled|canceled|reversed|superseded|descoped|dropped|deprioritized|shelved|paused))\b/i, weight: 3 },
   // The when-lane: same hypothetical as the if-lane, but anchored by "when"
   // or "before". Extended in session 12 from pronouns-only ("before he
   // leaves") to any subject ("when alex is out of office"): the lazy filler
@@ -84,6 +101,12 @@ const IMPACT: Signal[] = [
   // vacation" (past tense, a historical fact, not a hypothetical) and a
   // "while on vacation" fragment (no be-verb) both stay out.
   { re: /\bwhile\s+[^.?!]{0,32}?\s(?:is|are)\s+(?:out\s+of\s+(?:office|sick)|on\s+(?:(?:parental|maternity|paternity)\s+)?(?:leave|vacation|sabbatical)|away|unavailable)\b/i, weight: 3 },
+  // Session 14: the while-lane grows "travelling" ("who is exposed while
+  // alex is travelling?") — the same temporary-unavailability hypothetical
+  // the when-lane answers, in its gerund form. The gerund keeps the be-verb
+  // requirement, so "while alex was travelling" (past tense, a historical
+  // fact) still stays out.
+  { re: /\bwhile\s+[^.?!]{0,32}?\s(?:is|are)\s+(?:out\s+of\s+(?:office|sick)|on\s+(?:(?:parental|maternity|paternity)\s+)?(?:leave|vacation|sabbatical)|away|unavailable|travelling|traveling)\b/i, weight: 3 },
   { re: /\b(?:hit by a bus|bus factor)\b/i, weight: 3 },
   { re: /\b(?:offboard(?:ing|s)?|handover|hand-off|handoff|succession)\b/i, weight: 3 },
   // Consequence wording: "what are the consequences of priya leaving?" asks
@@ -94,6 +117,12 @@ const IMPACT: Signal[] = [
   { re: /\bfallout\b/i, weight: 3 },
   { re: /\bimplications?\b/i, weight: 3 },
   { re: /\bripple\s+effects?\b/i, weight: 3 },
+  // Session 14: "knock-on effect(s)" and "second-order effect(s)" join the
+  // consequence family — the same blast-radius ask in cascade vocabulary. The
+  // multiword forms are lexicon-taught (nlp.ts) so the hyphenated compounds
+  // stay whole; the singular/plural alternation covers both shapes.
+  { re: /\bknock[-\s]?on\s+effects?\b/i, weight: 3 },
+  { re: /\bsecond[-\s]order\s+effects?\b/i, weight: 3 },
   // Who-needs-to-know wording: "who needs to be in the loop on the payments
   // work?" asks for the blast radius report's who-needs-to-know section —
   // epic, decision or person. Needs/must/should + be keeps it a question
@@ -118,7 +147,13 @@ const IMPACT: Signal[] = [
   // change. The 'ed' forms live only inside the if-lane above, where a
   // hypothetical is explicit. "dropping" needs its own alternation (drop +
   // "ping" is "droping", a misspelling).
-  { re: /\b(?:cancel|supersede|reverse|descope|drop)(?:s|ing)?\b|\b(?:cancelling|canceling|superseding|reversing|descoping|dropping)\b|\bdeprioriti[sz](?:e|es|ing)\b/i, weight: 2 },
+  // Session 14: "shelve" and "pause" join the change-verb family — "what if
+  // the payments epic gets shelved?" and "what if we pause the auth epic?"
+  // are the epic blast radius in workstream vocabulary. "shelved" is
+  // POS-gated as a verb (nlp.ts) so the shelf-noun sense cannot fire;
+  // "paused" joins the state-verb list inside the if-lane, and the
+  // participle-as-state rule keeps "the epic was shelved" a description.
+  { re: /\b(?:cancel|supersede|reverse|descope|drop|shelve|shelving)(?:s|ing)?\b|\b(?:cancelling|canceling|superseding|reversing|descoping|dropping|shelving)\b|\bdeprioriti[sz](?:e|es|ing)\b|\bpause(?:s|d)?\b/i, weight: 2 },
   { re: /\bchang(?:e|es|ed|ing)\b/i, weight: 2 },
   // Dependence wording, verb and noun forms alike. "rel(y|ies|ied) on/upon"
   // (session 13) is the same dependence as "depend(s)": "who relies on
@@ -223,6 +258,40 @@ const TOP_RISKS: Signal[] = [
   { re: /\bload[-\s]bearing\b/i, weight: 3 },
   { re: /\bunreasonable\s+loads?\b/i, weight: 3 },
   { re: /\b(?:cannot|can't|can\s+not)\s+lose\b/i, weight: 3 },
+  // Session 14 frontier closures: the eighteen leftover ranking synonyms,
+  // each phrase-tight so near-miss wordings keep refusing. The idioms:
+  // "take for granted" (needs the granted — "who takes the most?" is a
+  // different ask), "engine of the team" (the-of forms), "dangerous
+  // dependency" (with most/our possessive shapes), "loss to absorb" /
+  // "biggest loss" / "regret losing" (the loss family), "quietly holds
+  // everything together" / "holding the team together" (the cohesion
+  // family), "heart of the team" (of-anchored), "most pivotal" (the
+  // pivotal superlative), "foundation" and "anchor" (the possessive "the
+  // team's ..." shapes only — bare "foundation" is a building question),
+  // "underestimate" (the who-do-we shape), "critical asset" (most/our
+  // possessive), "most entrenched", "bus number" (the idiom, also
+  // lexicon-taught), and "collapse without" (needs the without). Each
+  // carries its own near-miss boundary in the corpus (see eval.ts).
+  // "take for granted" (the who-do-we shape only — "who takes the most for
+  // granted?" and "who do we take for granted on payments?" are effort and
+  // scoped questions, not this ranking; both stay refusing),
+  { re: /\bwho\s+(?:do|does)\s+(?:we|you|they)\s+take\s+for\s+granted\b|\bwho\s+do\s+we\s+take\s+for\s+granted\b/i, weight: 3 },
+  { re: /\bengine\s+of\s+(?:the|this|our|my)\s+team\b/i, weight: 3 },
+  { re: /\b(?:most|our|my)\s+dangerous\s+dependenc(?:y|ies)\b|\bdangerous\s+dependenc(?:y|ies)\b/i, weight: 3 },
+  { re: /\b(?:hardest|biggest|worst|toughest|major)\s+loss(?:\s+to\s+absorb)?\b|\bloss\s+to\s+absorb\b/i, weight: 3 },
+  { re: /\bregret\s+losing\b|\bwould\s+regret\s+losing\b|\bregret\s+(?:the\s+most|losing)\b/i, weight: 3 },
+  { re: /\b(?:quietly\s+)?(?:holds?|holding|held)\s+(?:everything|it|the\s+(?:team|payments|auth|org)|.*?together)\s+together\b|\bholding\s+(?:the|this|our)\s+(?:team|payments|auth)\s+team\s+together\b|\bheld\s+together\b/i, weight: 3 },
+  { re: /\bheart\s+of\s+(?:the|this|our|my)\s+team\b/i, weight: 3 },
+  { re: /\bmost\s+pivotal\b/i, weight: 3 },
+  { re: /\b(?:team|org|company|department)'?s?\s+(?:foundation|anchor)\b|\bthe\s+team'?s\s+(?:foundation|anchor)\b/i, weight: 3 },
+  { re: /\bwho\s+(?:do|does)\s+(?:we|you|they)\s+underestimate\b|\bwho\s+do\s+we\s+underestimate\b/i, weight: 3 },
+  { re: /\b(?:most|our|my|the)\s+critical\s+assets?\b|\bmost\s+critical\s+asset\b/i, weight: 3 },
+  { re: /\bmost\s+entrenched\b/i, weight: 3 },
+  // "bus number" needs the possessive/our shape ("what is our bus
+  // number?") — a bare "when is the bus number?" is a scheduling oddity and
+  // keeps refusing.
+  { re: /\b(?:our|the\s+team'?s?|my)\s+bus\s+number\b/i, weight: 3 },
+  { re: /\bcollapse(?:s|d)?\s+without\b/i, weight: 3 },
   { re: /\bat\s+risk\b/i, weight: 2 },
   { re: /\brisks?\b|\bexposure\b|\bexposed\b/i, weight: 2 },
   { re: /\brank(?:ed|ing|s)?\b/i, weight: 1 },
@@ -285,10 +354,46 @@ function sum(signals: Signal[], question: string): number {
   return score;
 }
 
+/* ------------------------------------------------------------------ *
+ * The POS-gated safety valve (session 14). The departure lane's weight-3
+ * regex matches any "leaves|leaving|left" inside an if/before/when clause —
+ * correct for the departure hypothetical, WRONG for the noun "leave" a
+ * scheduling question carries ("when is alex on leave?"). Until now the
+ * fix was enumeration (bare "leave" banned from the lane); with compromise
+ * the gate is grammatical: the if-lane's departure signal may only fire
+ * when the matched verb-word is actually tagged a VERB. One analysis per
+ * question, cached (nlp.ts), so the cost stays inside the latency budget.
+ * ------------------------------------------------------------------ */
+
+const DEPARTURE_VERB_WORDS = ['leaves', 'leaving', 'left', 'quit', 'quits', 'resigns', 'resigned', 'retires', 'retired'];
+
+function gatedImpactScore(question: string, rawImpact: number): number {
+  // Only apply when the raw regexes matched departure wording — the common
+  // case (no departure wording) pays nothing beyond the cache lookup.
+  if (!/\b(?:if|before|when|while)\b/i.test(question)) return rawImpact;
+  if (!/\b(?:leaves|leaving|left|departs?|quit|quits|resigns?|resigned|retires?|retired)\b/i.test(question)) return rawImpact;
+
+  const analysis = analyzeQuestion(question);
+  // The gate's scope is deliberately narrow: the taught NOUN "leave" (the
+  // session-13 bug class — "when is alex on leave?", "go on parental
+  // leave"). The plural "leaves" is genuinely two-word ambiguous (autumn
+  // leaves vs "before priya leaves?"), and compromise tags the sentence-
+  // final verb form as a noun too, so gating it would break real departure
+  // traffic; the if-lane's own context words carry that case instead.
+  // Only when the singular noun is present AND tagged a noun AND no
+  // departure verb form exists do we distrust the lane match.
+  const hasSingularLeave = /\bleave\b/i.test(question);
+  const hasVerbForm = DEPARTURE_VERB_WORDS.some((w) => analysis.isVerbWord(w));
+  if (hasSingularLeave && !hasVerbForm && analysis.isNounWord('leave')) {
+    return rawImpact - 3 >= 0 ? rawImpact - 3 : 0;
+  }
+  return rawImpact;
+}
+
 /** Weighted intent scores for one question. Deterministic, order-free. */
 export function scoreIntents(question: string): IntentScores {
   return {
-    impact: sum(IMPACT, question),
+    impact: gatedImpactScore(question, sum(IMPACT, question)),
     topRisks: sum(TOP_RISKS, question),
     overview: sum(OVERVIEW, question),
     epic: sum(EPIC, question),
