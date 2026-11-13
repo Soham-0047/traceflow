@@ -422,3 +422,82 @@ describe('scoreIntents — session 14: consequence wording, transfer verbs, rank
     expect(impactSignal(scoreIntents('if the leave is approved, who covers the payments work?'))).toBe(false);
   });
 });
+
+describe('scoreIntents — session 15: knowledge metaphors, removal hypotheticals, during/whilst lanes', () => {
+  it('scores the session-15 ranking-synonym family above the threshold', () => {
+    for (const q of [
+      'who is the unsung hero of this team?',
+      'who is our unsung hero?',
+      'who do we not appreciate enough?',
+      'who has the most thankless job here?',
+      'who is the most overworked person on the team?',
+      'who is the most overworked engineer here?',
+      'who carries the weight of the whole team?',
+      "who is the team's bedrock?",
+      "who is the org's bedrock?",
+      'who would leave the biggest gap behind?',
+      'who does nobody else replace?',
+      'who is the quiet guardian of our systems?',
+      'who holds the deepest knowledge here?',
+      'who is the most difficult to substitute?',
+      'who is the most difficult person to substitute?',
+      'who has the most unique knowledge?',
+      'who are we most scared to lose?',
+      'who are we most afraid to lose?',
+      'who would be impossible to cover for?',
+      'who would be hardest to cover for?',
+      'who has no backup on this team?',
+      'who is the understudy for nobody?',
+    ]) {
+      expect(rankingStrong(scoreIntents(q)), q).toBe(true);
+    }
+  });
+
+  it('keeps the near-miss shapes of the session-15 ranking idioms refusing', () => {
+    for (const q of [
+      'who is the most overworked?',
+      'who sang the unsung hero?',
+      'who understudied nobody?',
+      'who appreciates whom?',
+      'what is a bedrock?',
+      'who carries the weight?',
+    ]) {
+      expect(rankingStrong(scoreIntents(q)), q).toBe(false);
+    }
+  });
+
+  it('scores domino effect as consequence wording beside ripple and knock-on', () => {
+    expect(impactStrong(scoreIntents('what is the domino effect of the queue decision?'))).toBe(true);
+    expect(impactStrong(scoreIntents('what are the domino effects of the token format decision?'))).toBe(true);
+    // A bare domino (the tile, the game) carries no consequence wording.
+    expect(impactSignal(scoreIntents('what is a domino?'))).toBe(false);
+  });
+
+  it('scores the removal and transfer hypotheticals inside the if-lane', () => {
+    for (const q of [
+      'what if alex gets sidelined?',
+      'what if sam gets headhunted by google?',
+      'what if priya moves abroad?',
+      'what if alex relocates?',
+      'what if alex is off sick for a month?',
+      'what if alex is hospitalized?',
+      'what if alex gets decommissioned?',
+      'what if priya goes silent?',
+      'what if alex goes quiet?',
+    ]) {
+      expect(impactStrong(scoreIntents(q)), q).toBe(true);
+    }
+    // The scheduling when-shapes route to the profile, not impact.
+    expect(impactSignal(scoreIntents('when does priya relocate?'))).toBe(false);
+    expect(impactSignal(scoreIntents('when is alex on holiday?'))).toBe(false);
+  });
+
+  it('scores the during-possessive and whilst availability lanes', () => {
+    expect(impactStrong(scoreIntents("who is exposed during alex's vacation?"))).toBe(true);
+    expect(impactStrong(scoreIntents("who is exposed during priya's sabbatical?"))).toBe(true);
+    expect(impactStrong(scoreIntents('who is exposed whilst alex is on holiday?'))).toBe(true);
+    expect(impactStrong(scoreIntents('who is exposed whilst sam is on vacation?'))).toBe(true);
+    // Past-tense fragments stay out.
+    expect(impactSignal(scoreIntents('while alex was on holiday we shipped'))).toBe(false);
+  });
+});

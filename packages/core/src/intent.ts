@@ -74,7 +74,16 @@ const IMPACT: Signal[] = [
   // gates "ghosts"/"shelved" as VERBS so the noun senses ("the game
   // ghosts", "the shelved state") cannot fire the lane — the first
   // compromise-backed signals in this table.
-  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|departed|quit|quits|resigns|resigned|retires|retired|is unavailable|becomes unavailable|is out sick|gets sick|falls ill|is out of office|calls in sick|is on vacation|is on leave|goes on leave|is away|will be away|got hit|gets hit|changes|changed|walks\s+off\s+the\s+job|ghosts?\s+(?:us|the\s+team)|gets?\s+pulled\s+onto\s+(?:another|a\s+different|another\s+team)|gets?\s+reassigned|got\s+reassigned|(?:is|goes)\s+on\s+(?:parental|maternity|paternity)\s+leave|(?:is|goes)\s+on\s+sabbatical|takes\s+(?:an?\s+)?(?:(?:parental|maternity|paternity)\s+)?leave|takes\s+(?:an?\s+)?sabbatical|(?:is|gets?|got|was|were)\s+poached|(?:is|gets?|got|was|were)\s+(?:cancelled|canceled|reversed|superseded|descoped|dropped|deprioritized|shelved|paused))\b/i, weight: 3 },
+  // Session 15: the talent-loss and transfer shapes grow again —
+  // "gets sidelined" (removed from the work), "gets headhunted" (recruited
+  // away, poached's sibling), "moves abroad" and "relocates" (geographic
+  // departure), the illness shapes "is off sick" and "is hospitalised /
+  // hospitalized" (both spellings), "gets decommissioned" (the system
+  // metaphor for taken out of the work), and "goes silent / goes quiet"
+  // (ghosts' state-verb sibling). Each keeps the be/get auxiliary the
+  // if-lane requires, so bare "silent"/"quiet"/"sidelined" fragments stay
+  // out.
+  { re: /\bif\b[^.?!]{0,48}\b(?:leaves|leaving|left|departs|departed|quit|quits|resigns|resigned|retires|retired|is unavailable|becomes unavailable|is out sick|gets sick|falls ill|is off sick|is\s+(?:hospitali[sz]ed)|gets?\s+sidelined|gets?\s+headhunted|moves\s+abroad|relocates?|gets?\s+decommissioned|goes\s+(?:silent|quiet)|is out of office|calls in sick|is on vacation|is on leave|goes on leave|is away|will be away|got hit|gets hit|changes|changed|walks\s+off\s+the\s+job|ghosts?\s+(?:us|the\s+team)|gets?\s+pulled\s+onto\s+(?:another|a\s+different|another\s+team)|gets?\s+reassigned|got\s+reassigned|(?:is|goes)\s+on\s+(?:parental|maternity|paternity)\s+leave|(?:is|goes)\s+on\s+sabbatical|takes\s+(?:an?\s+)?(?:(?:parental|maternity|paternity)\s+)?leave|takes\s+(?:an?\s+)?sabbatical|(?:is|gets?|got|was|were)\s+poached|(?:is|gets?|got|was|were)\s+(?:cancelled|canceled|reversed|superseded|descoped|dropped|deprioritized|shelved|paused))\b/i, weight: 3 },
   // The when-lane: same hypothetical as the if-lane, but anchored by "when"
   // or "before". Extended in session 12 from pronouns-only ("before he
   // leaves") to any subject ("when alex is out of office"): the lazy filler
@@ -106,7 +115,16 @@ const IMPACT: Signal[] = [
   // the when-lane answers, in its gerund form. The gerund keeps the be-verb
   // requirement, so "while alex was travelling" (past tense, a historical
   // fact) still stays out.
-  { re: /\bwhile\s+[^.?!]{0,32}?\s(?:is|are)\s+(?:out\s+of\s+(?:office|sick)|on\s+(?:(?:parental|maternity|paternity)\s+)?(?:leave|vacation|sabbatical)|away|unavailable|travelling|traveling)\b/i, weight: 3 },
+  { re: /\b(?:while|whilst)\s+[^.?!]{0,32}?\s(?:is|are)\s+(?:out\s+of\s+(?:office|sick)|on\s+(?:(?:parental|maternity|paternity)\s+)?(?:leave|vacation|sabbatical|holiday)|away|unavailable|travelling|traveling)\b/i, weight: 3 },
+  // Session 15: the while-lane grows "holiday" ("whilst alex is on holiday?"
+  // and "while alex is on holiday?" — the British availability word beside
+  // vacation), and a **during-possessive lane** mirrors the while-lane for
+  // "who is exposed during alex's vacation?" / "during priya's sabbatical?"
+  // — the same temporary-unavailability hypothetical, anchored by the
+  // possessive rather than a be-verb. During + a person-shaped possessive +
+  // an availability noun; past-tense stays out because during carries no
+  // tense at all, so the noun must carry the availability.
+  { re: /\bduring\s+[^.?!]{0,32}?(?:vacation|sabbatical|leave|holiday|absence|time\s+off|parental\s+leave|maternity\s+leave|paternity\s+leave)\b/i, weight: 3 },
   { re: /\b(?:hit by a bus|bus factor)\b/i, weight: 3 },
   { re: /\b(?:offboard(?:ing|s)?|handover|hand-off|handoff|succession)\b/i, weight: 3 },
   // Consequence wording: "what are the consequences of priya leaving?" asks
@@ -123,6 +141,10 @@ const IMPACT: Signal[] = [
   // stay whole; the singular/plural alternation covers both shapes.
   { re: /\bknock[-\s]?on\s+effects?\b/i, weight: 3 },
   { re: /\bsecond[-\s]order\s+effects?\b/i, weight: 3 },
+  // Session 15: "domino effect(s)" completes the cascade family — "what is
+  // the domino effect of the queue decision?" is the decision's blast
+  // radius in cascade vocabulary, exactly like ripple/knock-on/second-order.
+  { re: /\bdomino\s+effects?\b/i, weight: 3 },
   // Who-needs-to-know wording: "who needs to be in the loop on the payments
   // work?" asks for the blast radius report's who-needs-to-know section —
   // epic, decision or person. Needs/must/should + be keeps it a question
@@ -291,6 +313,39 @@ const TOP_RISKS: Signal[] = [
   // number?") — a bare "when is the bus number?" is a scheduling oddity and
   // keeps refusing.
   { re: /\b(?:our|the\s+team'?s?|my)\s+bus\s+number\b/i, weight: 3 },
+  // Session 15 frontier closures: the twelve leftover ranking synonyms,
+  // each phrase-tight so near-miss wordings keep refusing. "unsung hero"
+  // (of/possessive-anchored — "who sang the unsung hero?" keeps refusing);
+  // "not appreciate enough" (the who-do-we shape); "thankless job"; the
+  // overworked superlative with its person/engineer/here anchors (the bare
+  // "who is the most overworked?" stays out — effort without a role noun);
+  // "carries the weight of" (of-anchored); "bedrock" (possessive
+  // team's/org's/company's, like foundation/anchor — bare stays out);
+  // "biggest gap" with its leave-beind verb shape; "nobody else replaces"
+  // (the third-person coverage question); "quiet guardian"; "deepest
+  // knowledge"; "most difficult to substitute"; "most unique knowledge".
+  { re: /\bunsung\s+hero(?:es)?\s+of\s+(?:the|this|our|my|payments|auth|the\s+payments|the\s+auth)\b|\b(?:our|the\s+team'?s?)\s+unsung\s+hero(?:es)?\b/i, weight: 3 },
+  { re: /\bwho\s+(?:do|does)\s+(?:we|you|they)\s+not\s+appreciate\b/i, weight: 3 },
+  { re: /\bthankless\s+jobs?\b/i, weight: 3 },
+  { re: /\bmost\s+overworked\s+(?:person|people|engineer|member|teammate|employee|player)s?\b|\bmost\s+overworked\s+here\b/i, weight: 3 },
+  { re: /\bcarri?e?s?\s+the\s+weight\s+of\b|\bcarrying\s+the\s+weight\s+of\b/i, weight: 3 },
+  { re: /\b(?:team|org|company|department)'s?\s+bedrocks?\b/i, weight: 3 },
+  { re: /\b(?:biggest|largest|widest)\s+gaps?\s+(?:behind|left\s+behind|they'?d\s+leave)?\b|\bleave\s+the\s+biggest\s+gaps?\b|\bwould\s+leave\s+the\s+biggest\s+gaps?\b/i, weight: 3 },
+  { re: /\bwho\s+(?:does\s+)?nobody\s+else\s+(?:replaces?|covers?)\b/i, weight: 3 },
+  { re: /\bquiet\s+guardians?\b/i, weight: 3 },
+  { re: /\bdeepest\s+knowledge\b|\bdeep\s+knowledge\b/i, weight: 3 },
+  { re: /\bmost\s+difficult\s+(?:(?:person|people|engineer|member|teammate|employee|player)s?\s+)?to\s+substitut(?:e|ion)\b|\bhardest\s+(?:(?:person|people|engineer|member|teammate|employee|player)s?\s+)?to\s+substitut(?:e|ion)\b|\bdifficult\s+to\s+replace\b/i, weight: 3 },
+  { re: /\bmost\s+unique\s+knowledge\b|\bmost\s+speciali[sz]ed\s+knowledge\b/i, weight: 3 },
+  // The fear/coverage family (session 15 round 3): "most scared/afraid to
+  // lose" (the who-anchored fear idiom), "impossible/hardest to cover for"
+  // (the coverage superlative), "no backup on this team" (the possessive
+  // team shape — the epic-scoped "no backup on the auth epic?" anchors the
+  // epic instead, matcher phrase below), and the understudy idiom
+  // ("understudy for nobody" — the person nobody can stand in for).
+  { re: /\b(?:most\s+)?(?:scared|afraid|terrified)\s+to\s+lose\b/i, weight: 3 },
+  { re: /\b(?:impossible|hardest|toughest|most\s+difficult)\s+to\s+cover\s+for\b/i, weight: 3 },
+  { re: /\bhas\s+no\s+backup\s+on\s+(?:this|the)\s+team\b|\bhas\s+no\s+backup\b/i, weight: 3 },
+  { re: /\bunderstud(?:y|ies)\s+for\s+nobody\b/i, weight: 3 },
   { re: /\bcollapse(?:s|d)?\s+without\b/i, weight: 3 },
   { re: /\bat\s+risk\b/i, weight: 2 },
   { re: /\brisks?\b|\bexposure\b|\bexposed\b/i, weight: 2 },
