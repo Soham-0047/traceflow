@@ -4050,10 +4050,11 @@ const photoShapeByFile = {};
 const jobByFile = {};
 const contexts = [];
 const parsedDocs = new Map();
+let internalErrors = 0; // any swallowed crash or unparseable file must fail the run, not pass it
 const docOf = (f) => {
   if (parsedDocs.has(f)) return parsedDocs.get(f);
   let doc = null;
-  try { doc = parseDoc(f, readFileSync(f, 'utf8')); } catch (e) { console.error(`sloplint: skipped ${rel(f)}, it could not be parsed (${e.message})`); }
+  try { doc = parseDoc(f, readFileSync(f, 'utf8')); } catch (e) { internalErrors++; console.error(`sloplint: skipped ${rel(f)}, it could not be parsed (${e.message})`); }
   parsedDocs.set(f, doc);
   return doc;
 };
@@ -4135,6 +4136,7 @@ for (const [key, ctx] of contexts) {
   waiversByKey.set(key, { WAIVED, ANSWERED, DISMISSED, VERBATIM, APPSCREEN, LAYOUT_KEPT });
   for (const check of CHECKS) {
     try { check(ctx); } catch (e) {
+      internalErrors++;
       console.error(`sloplint: internal error in ${check.name} for ${rel(key)}: ${e.message}`);
     }
   }
@@ -4361,6 +4363,7 @@ if (reflex) tally.push(`${reflex} REFLEX`);
 tally.push(`${warns} WARN`);
 if (waived) tally.push(`${waived} WAIVED`);
 if (rejected) tally.push(`${rejected} REJECTED`);
+if (internalErrors) tally.push(`${internalErrors} INTERNAL`);
 if (answered) tally.push(`${answered} ANSWERED`);
 if (dismissed) tally.push(`${dismissed} DISMISSED`);
 if (notes) tally.push(`${notes} NOTE`);
@@ -4420,5 +4423,5 @@ if (opts.json) {
   if (compareNote) console.log(compareNote);
   if (beforeLine) console.log(beforeLine);
 }
-const exitCode = !opts.before && (fails > 0 || reflex > 0) ? 1 : 0;
+const exitCode = !opts.before && (fails > 0 || reflex > 0 || internalErrors > 0) ? 1 : 0;
 if (process.stdout.writableLength) process.stdout.once('drain', () => process.exit(exitCode)); else process.exit(exitCode);

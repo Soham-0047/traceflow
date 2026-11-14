@@ -20,9 +20,12 @@
     "progress": "node scripts/progress.mjs",
     "progress:write": "node scripts/progress.mjs --write",
     "progress:check": "node scripts/progress.mjs --check",
-    "verify": "npm run typecheck && npm test && npm run build && npm run e2e && npm run lint:design && npm run lint:site && npm run a11y"
+    "verify": "npm run typecheck && npm test && npm run build && npm run e2e && npm run lint:design && npm run lint:site && npm run a11y && npm run progress:check"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@traceflow/core": "workspace:*",
+    "@traceflow/mcp": "workspace:*",
     "axe-core": "4.10.2",
     "playwright": "1.57.0"
   },

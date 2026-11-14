@@ -91,6 +91,23 @@ function ImpactReady({ graph }: { graph: OrgGraph }) {
     );
   }
 
+  // One report per subject per render: the main panel and the evidence
+  // drawer used to each call personImpact/epicImpact/decisionImpact on the
+  // same inputs, so the full engine ran twice per subject. Memoized once
+  // here, threaded down to both.
+  const personReport = useMemo(
+    () => (subject === 'person' && route.id ? personImpact(graph, route.id) : null),
+    [subject, graph, route.id],
+  );
+  const epicReport = useMemo(
+    () => (subject === 'epic' && route.id ? epicImpact(graph, route.id) : null),
+    [subject, graph, route.id],
+  );
+  const decisionReport = useMemo(
+    () => (subject === 'decision' && route.id ? decisionImpact(graph, route.id) : null),
+    [subject, graph, route.id],
+  );
+
   return (
     <div className="workspace">
       <section className="rail" aria-label={railLabel(subject)}>
@@ -115,14 +132,14 @@ function ImpactReady({ graph }: { graph: OrgGraph }) {
       </section>
 
       <section className="main" aria-label="Change impact">
-        {subject === 'person' ? <PersonMain graph={graph} route={route} ranked={ranked} /> : null}
-        {subject === 'epic' ? <EpicMain graph={graph} route={route} epics={epics} /> : null}
-        {subject === 'decision' ? <DecisionMain graph={graph} route={route} decisions={decisions} /> : null}
+        {subject === 'person' ? <PersonMain route={route} ranked={ranked} report={personReport} /> : null}
+        {subject === 'epic' ? <EpicMain route={route} epics={epics} report={epicReport} /> : null}
+        {subject === 'decision' ? <DecisionMain route={route} decisions={decisions} report={decisionReport} /> : null}
       </section>
 
-      {subject === 'person' ? <PersonEvidence graph={graph} route={route} ranked={ranked} /> : null}
-      {subject === 'epic' ? <EpicEvidence graph={graph} route={route} epics={epics} /> : null}
-      {subject === 'decision' ? <DecisionEvidence graph={graph} route={route} decisions={decisions} /> : null}
+      {subject === 'person' ? <PersonEvidence route={route} ranked={ranked} report={personReport} /> : null}
+      {subject === 'epic' ? <EpicEvidence route={route} epics={epics} report={epicReport} /> : null}
+      {subject === 'decision' ? <DecisionEvidence route={route} decisions={decisions} report={decisionReport} /> : null}
     </div>
   );
 }
@@ -232,19 +249,15 @@ function DecisionRail({
  * ------------------------------------------------------------------ */
 
 function PersonMain({
-  graph,
   route,
   ranked,
+  report,
 }: {
-  graph: OrgGraph;
   route: Route;
   ranked: ReturnType<typeof rankPeopleByRisk>;
+  report: ReturnType<typeof personImpact> | null;
 }) {
   const current = ranked.find((r) => r.personId === route.id);
-  const report = useMemo(
-    () => (current ? personImpact(graph, current.personId) : null),
-    [graph, current],
-  );
 
   if (!current || !report) {
     return <EmptyState title="Person not found">Pick someone from the list.</EmptyState>;
@@ -281,16 +294,15 @@ function PersonMain({
 }
 
 function EpicMain({
-  graph,
   route,
   epics,
+  report,
 }: {
-  graph: OrgGraph;
   route: Route;
   epics: ReturnType<typeof buildOverview>['epics'];
+  report: ReturnType<typeof epicImpact> | null;
 }) {
   const epic = epics.find((e) => e.epic.id === route.id);
-  const report = useMemo(() => (epic ? epicImpact(graph, epic.epic.id) : null), [graph, epic]);
 
   if (!epic || !report) {
     return <EmptyState title="Epic not found">Pick an epic from the list.</EmptyState>;
@@ -355,19 +367,15 @@ function EpicMain({
 }
 
 function DecisionMain({
-  graph,
   route,
   decisions,
+  report,
 }: {
-  graph: OrgGraph;
   route: Route;
   decisions: OrgGraph['decisions'];
+  report: ReturnType<typeof decisionImpact> | null;
 }) {
   const decision = decisions.find((d) => d.ref.id === route.id);
-  const report = useMemo(
-    () => (decision ? decisionImpact(graph, decision.ref.id) : null),
-    [graph, decision],
-  );
 
   if (!decision || !report) {
     return <EmptyState title="Decision not found">Pick a decision from the list.</EmptyState>;
@@ -528,61 +536,53 @@ function ImpactRow({
  * ------------------------------------------------------------------ */
 
 function PersonEvidence({
-  graph,
   route,
   ranked,
+  report,
 }: {
-  graph: OrgGraph;
   route: Route;
   ranked: ReturnType<typeof rankPeopleByRisk>;
+  report: ReturnType<typeof personImpact> | null;
 }) {
   const current = ranked.find((r) => r.personId === route.id);
-  const report = useMemo(
-    () => (current ? personImpact(graph, current.personId) : null),
-    [graph, current],
-  );
   const selected = report
     ? report.areas.find((a, i) => areaId(a, i) === route.finding)
     : undefined;
-  return <EvidencePanel item={selected ? areaToEvidence(selected) : undefined} />;
+  return <EvidencePanel item={selected ? areaToEvidence(selected) : undefined} selectionId={route.finding} />;
 }
 
 function EpicEvidence({
-  graph,
   route,
   epics,
+  report,
 }: {
-  graph: OrgGraph;
   route: Route;
   epics: ReturnType<typeof buildOverview>['epics'];
+  report: ReturnType<typeof epicImpact> | null;
 }) {
   const epic = epics.find((e) => e.epic.id === route.id);
-  const report = useMemo(() => (epic ? epicImpact(graph, epic.epic.id) : null), [graph, epic]);
   const area = report?.areas.find((a, i) => areaId(a, i) === route.finding);
   const gap = report && !area ? report.gaps.find((g, i) => findingId(g, i) === route.finding) : undefined;
   return (
     <EvidencePanel
       item={area ? areaToEvidence(area) : gap ? toEvidence(gap) : undefined}
+      selectionId={route.finding}
     />
   );
 }
 
 function DecisionEvidence({
-  graph,
   route,
   decisions,
+  report,
 }: {
-  graph: OrgGraph;
   route: Route;
   decisions: OrgGraph['decisions'];
+  report: ReturnType<typeof decisionImpact> | null;
 }) {
   const decision = decisions.find((d) => d.ref.id === route.id);
-  const report = useMemo(
-    () => (decision ? decisionImpact(graph, decision.ref.id) : null),
-    [graph, decision],
-  );
   const selected = report
     ? report.areas.find((a, i) => areaId(a, i) === route.finding)
     : undefined;
-  return <EvidencePanel item={selected ? areaToEvidence(selected) : undefined} />;
+  return <EvidencePanel item={selected ? areaToEvidence(selected) : undefined} selectionId={route.finding} />;
 }

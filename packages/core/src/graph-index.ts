@@ -27,6 +27,12 @@ export interface GraphIndex {
   workByLinkedPullRequestId: Map<string, WorkItem[]>;
   /** Decisions that name a work item in `linkedWorkItemIds`. */
   decisionsByLinkedWorkItemId: Map<string, Decision[]>;
+  /** Decision id -> the work linked to it: items whose remote links point at
+   *  the decision page plus items the decision names directly, canonical id
+   *  order. Three call sites (traceDecision, decisionImpact, the scope-join
+   *  answer) used to rebuild this per decision per question by copy-paste;
+   *  the index builds it once per graph. */
+  workByDecisionId: Map<string, WorkItem[]>;
 }
 
 function pushTo<K>(map: Map<K, unknown[]>, key: K, value: unknown): void {
@@ -60,11 +66,27 @@ export function buildGraphIndex(graph: OrgGraph): GraphIndex {
 
   const decisionsById = new Map<string, Decision>();
   const decisionsByLinkedWorkItemId = new Map<string, Decision[]>();
+  const workByDecisionId = new Map<string, WorkItem[]>();
   for (const decision of graph.decisions) {
     if (!decisionsById.has(decision.ref.id)) decisionsById.set(decision.ref.id, decision);
     for (const workId of decision.linkedWorkItemIds ?? []) {
       pushTo(decisionsByLinkedWorkItemId, workId, decision);
     }
+    // The shared linkage, built once: remote links at the decision page,
+    // plus the ids the decision names directly. First occurrence wins per
+    // work id, then canonical id order.
+    const linked = new Map<string, WorkItem>();
+    for (const item of workByLinkedPageId.get(decision.ref.id) ?? []) {
+      linked.set(item.ref.id, item);
+    }
+    for (const wid of decision.linkedWorkItemIds ?? []) {
+      const item = workById.get(wid);
+      if (item) linked.set(item.ref.id, item);
+    }
+    workByDecisionId.set(
+      decision.ref.id,
+      [...linked.values()].sort((a, b) => a.ref.id.localeCompare(b.ref.id)),
+    );
   }
 
   const pullRequestsById = new Map<string, PullRequest>();
@@ -83,6 +105,7 @@ export function buildGraphIndex(graph: OrgGraph): GraphIndex {
     workByLinkedPageId,
     workByLinkedPullRequestId,
     decisionsByLinkedWorkItemId,
+    workByDecisionId,
   };
 }
 

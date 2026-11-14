@@ -445,17 +445,10 @@ export function decisionImpact(graph: OrgGraph, decisionId: string): DecisionImp
   const decision = index.decisionsById.get(decisionId);
   if (!decision) throw new Error(`Unknown decision: ${decisionId}`);
 
-  // Linked work: the same linkage traceDecision uses — items whose remote links
-  // point at the decision, plus items the decision names directly.
-  const linkedMap = new Map<string, WorkItem>();
-  for (const item of index.workByLinkedPageId.get(decision.ref.id) ?? []) {
-    linkedMap.set(item.ref.id, item);
-  }
-  for (const wid of decision.linkedWorkItemIds ?? []) {
-    const item = index.workById.get(wid);
-    if (item) linkedMap.set(item.ref.id, item);
-  }
-  const linked = [...linkedMap.values()].sort(byRefId);
+  // Linked work: the same linkage traceDecision uses, now from the shared
+  // index (workByDecisionId) — remote links at the decision page plus the
+  // ids the decision names directly, canonical id order.
+  const linked = index.workByDecisionId.get(decision.ref.id) ?? [];
   const openLinked = linked.filter((w) => w.status === 'open');
 
   const areas: ImpactArea[] = [];

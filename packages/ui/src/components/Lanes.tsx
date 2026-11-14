@@ -126,9 +126,18 @@ export function Lanes({
       }
       setPaths(next);
     };
-    compute();
+    // One initial compute: ResizeObserver's own mandatory first callback
+    // would fire a second full layout pass on mount if compute() were also
+    // called eagerly here, and on window resizes both the observer and the
+    // resize listener used to run it twice. The observer covers the eager
+    // case (it fires once per observe), so only the window fallback is
+    // needed for engines without ResizeObserver (jsdom).
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(compute);
-    observer?.observe(root);
+    if (observer) {
+      observer.observe(root);
+    } else {
+      compute();
+    }
     window.addEventListener('resize', compute);
     return () => {
       observer?.disconnect();

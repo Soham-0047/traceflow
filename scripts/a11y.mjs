@@ -124,11 +124,42 @@ let violations = 0;
 try {
   for (const { label, url, viewport } of audits) {
     const page = await browser.newPage({ viewport });
+    // A blank page must never audit green: a broken bundle or a stale
+    // hashed asset used to leave every view an empty <div id="root">, and
+    // axe reported 0 violations on an empty DOM. Runtime errors abort the
+    // audit for that page; the content marker catches silent emptiness.
+    const pageErrors = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    page.on(
+      'console',
+      (message) => {
+        if (message.type() === 'error') pageErrors.push(message.text());
+      },
+    );
     await page.goto(origin + url, { waitUntil: 'networkidle' });
     await page.waitForTimeout(500); // let the demo adapter's 300ms settle and fonts swap in
+    const where = `${label} @ ${viewport.width}px (${url})`;
+    const marker = await page.evaluate(() => {
+      const main = document.querySelector('main');
+      return main ? main.innerText.trim().length : 0;
+    });
+    if (marker === 0) {
+      violations += 1;
+      console.log(`  FAIL  ${where}`);
+      console.log(`        rendered-nothing: <main> has no text content (asset 404 or app crashed)`);
+      if (pageErrors.length > 0) console.log(`        first error: ${pageErrors[0].split('\n')[0]}`);
+      await page.close();
+      continue;
+    }
+    if (pageErrors.length > 0) {
+      violations += pageErrors.length;
+      console.log(`  FAIL  ${where}`);
+      for (const message of pageErrors.slice(0, 3)) console.log(`        pageerror: ${message.split('\n')[0]}`);
+      await page.close();
+      continue;
+    }
     await page.addScriptTag({ path: axeSource });
     const results = await page.evaluate((options) => window.axe.run(document, options), AXE_OPTIONS);
-    const where = `${label} @ ${viewport.width}px (${url})`;
     if (results.violations.length === 0) {
       console.log(`  ok    ${where}`);
     } else {

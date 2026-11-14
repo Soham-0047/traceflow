@@ -61,6 +61,36 @@ describe('matchPerson', () => {
     expect(matchPerson(sampleGraph, 'What is the weather on Mars?').unmatchedMention).toBe('Mars');
   });
 
+  it('flags an unknown name that leads the question (session 17)', () => {
+    // "Zed's risk profile?" — the unknown name is the FIRST word, which the
+    // old slice(1) heuristic skipped entirely, letting the bare "risk" word
+    // route the question to the free top-risks ranking instead of refusing.
+    expect(matchPerson(sampleGraph, "Zed's risk profile?").unmatchedMention).toBe("Zed's");
+    // Grammar words that legitimately open a sentence are not flagged.
+    expect(matchPerson(sampleGraph, 'What is the weather on Mars?').unmatchedMention).toBe('Mars');
+    expect(matchPerson(sampleGraph, 'What breaks if Mars leaves?').unmatchedMention).toBe('Mars');
+    expect(matchPerson(sampleGraph, 'Who owns the payments work?').unmatchedMention).toBeUndefined();
+  });
+
+  it('never matches a one-token name inside an ordinary word (session 17)', () => {
+    // The 0.95 full-name lane had no word boundaries: "Sam" sat inside
+    // "same time" (the session-12 bug class, fixed then only in the prefix
+    // lane) and a person named "Art" would sit inside "start".
+    const pair = matchPerson(sampleGraph, 'which two people should never be on vacation at the same time?');
+    expect(pair.person).toBeUndefined();
+    expect(pair.ambiguous).toBeUndefined();
+    // A person literally named "Art" must not match inside "start the run".
+    const withArt: OrgGraph = {
+      ...sampleGraph,
+      people: [...sampleGraph.people, { id: 'art-diaz', name: 'Art Diaz' }],
+    };
+    const startQ = matchPerson(withArt, 'when should we start the migration?');
+    expect(startQ.person?.id).not.toBe('art-diaz');
+    expect(startQ.unmatchedMention).toBeUndefined();
+    // But the whole-word full name still wins its lane.
+    expect(matchPerson(withArt, 'risk profile for Art Diaz').person?.id).toBe('art-diaz');
+  });
+
   it('is deterministic across record order (stable ranking by score then id)', () => {
     const shuffled: OrgGraph = {
       ...sampleGraph,
@@ -87,6 +117,16 @@ describe('matchEpic', () => {
     expect(matchEpic(sampleGraph, 'trace the auth epic').epicId).toBe('AUTH-1');
     // No domain word: 'the payments service' is not an epic question.
     expect(matchEpic(sampleGraph, 'how do i deploy the payments service?').epicId).toBeUndefined();
+  });
+
+  it('never matches a full title inside ordinary running text (session 17)', () => {
+    // The 0.95 full-title lane had no word boundaries: an epic titled
+    // "Payments" matched "the payments service is slow" because plain
+    // substring includes() has no edges. Whole-word containment only.
+    const pair = matchEpic(sampleGraph, 'the payments service is slow, who owns that service?');
+    expect(pair.epicId).toBeUndefined();
+    // The whole-word form still anchors: title tokens + domain word.
+    expect(matchEpic(sampleGraph, 'trace the payments reliability epic').epicId).toBe('PAY-1');
   });
 
   it('does not match an epic question that names none', () => {

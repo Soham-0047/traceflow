@@ -491,7 +491,11 @@ stages.push(stage('12. query latency: per-question budgets on the 7k org', async
   // org. Cold includes the first ranking (index + matcher index + all 250
   // risk reports); warm is steady-state chat traffic, where the per-graph
   // report memo and the shared matcher index do their work.
-  const people = Array.from({ length: 250 }, (_, i) => ({ id: `acc-${i}`, name: `Person ${i}` }));
+  // Names are distinct ("Ada Chen 7"): with shared names ("Person 7") every
+  // person question is genuinely ambiguous (the shared token "person" ties
+  // all 250 people), the battery refuses, and the stage stops measuring
+  // answer latency. Distinct names keep the workload answerable.
+  const people = Array.from({ length: 250 }, (_, i) => ({ id: `acc-${i}`, name: `Ada Chen ${i}` }));
   const workItems = [];
   for (let e = 0; e < 250; e++) {
     workItems.push({ ref: { source: 'jira', id: `EP-${e}`, title: `Epic ${e}` }, type: 'epic', assigneeId: `acc-${e % 250}`, status: 'open' });
@@ -531,28 +535,41 @@ stages.push(stage('12. query latency: per-question budgets on the 7k org', async
   const graph = { people, workItems, pages, pullRequests, decisions };
 
   const battery = [
-    'What are the biggest knowledge risks right now?',
-    'What is the risk around Person 7?',
-    'What breaks if Person 12 leaves?',
-    'Trace the epic EP-3',
-    'What breaks if the Epic 42 epic changes?',
-    'What is the status of the page 7 decision?',
-    'What happens if the page 21 decision changes?',
-    'Give me an overview of the organization',
-    'what is the weather on mars?',
-    'who is our most critical person?',
+    // [question, must answer]: every entry pins its expected outcome, so a
+    // matcher regression that turns an answer into a refusal (or floods
+    // everything into refusals, which the old answered-OR-refused assertion
+    // accepted vacuously — 6 of these 10 were silent refusals) fails the
+    // stage by name. On this synthetic org, entity questions carry record
+    // ids ("acc-7", "pg-7"): names like "Ada Chen 7" are genuinely
+    // ambiguous (all 250 people share "Ada Chen" tokens), and the engine
+    // honestly refuses ambiguous mentions by design.
+    ['What are the biggest knowledge risks right now?', true],
+    ['What is the risk around acc-7?', true],
+    ['What breaks if acc-12 leaves?', true],
+    ['Trace the epic EP-3', true],
+    ['What is the status of the pg-7 decision?', true],
+    ['Give me an overview of the organization', true],
+    ['who is our most critical person?', true],
+    ['what is the weather on mars?', false],
+    ['What is the risk around Ada Chen 7?', false],
+    ['What breaks if the Epic 42 epic changes?', false],
   ];
 
   const t0 = performance.now();
-  for (const q of battery) {
+  for (const [q, expected] of battery) {
     const result = answerQuery(graph, q);
-    assert(result.understood === true || result.suggestions.length > 0, `query must answer or refuse: ${q}`);
+    assert(
+      result.understood === expected,
+      `expected ${expected ? 'an answer' : 'an honest refusal'} for "${q}", got ${
+        result.understood ? 'an answer' : 'a refusal'
+      }`,
+    );
   }
   const cold = performance.now() - t0;
 
   const t1 = performance.now();
   const WARM_PASSES = 5;
-  for (let r = 0; r < WARM_PASSES; r++) for (const q of battery) answerQuery(graph, q);
+  for (let r = 0; r < WARM_PASSES; r++) for (const [q] of battery) answerQuery(graph, q);
   const warm = (performance.now() - t1) / WARM_PASSES;
 
   // Determinism must survive the caches: repeated warm answers are identical.

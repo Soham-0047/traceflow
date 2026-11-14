@@ -133,7 +133,7 @@ function DecisionsReady({ graph }: { graph: OrgGraph }) {
         )}
       </section>
 
-      <EvidencePanel item={selected ? toEvidence(selected) : undefined} />
+      <EvidencePanel item={selected ? toEvidence(selected) : undefined} selectionId={route.finding} />
     </div>
   );
 }

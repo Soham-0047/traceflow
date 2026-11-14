@@ -39,7 +39,7 @@ export function RecordRow({ record }: { record: RecordRef })  {
 }
 
 /** The Evidence Drawer: what was found, why, which records, how sure, what to do. */
-export function EvidencePanel({ item }: { item?: EvidenceItem }) {
+export function EvidencePanel({ item, selectionId }: { item?: EvidenceItem; selectionId?: string }) {
   return (
     <aside className="evidence" aria-labelledby="evidence-heading">
       <h2 id="evidence-heading">Evidence</h2>
@@ -48,10 +48,12 @@ export function EvidencePanel({ item }: { item?: EvidenceItem }) {
           Select a finding to see why it was flagged and which records support it.
         </p>
       ) : (
-        // The key is the finding's identity: when the finding changes the
-        // content node remounts and the panel-in exchange runs; when it does
-        // not, nothing replays.
-        <div className="evidence-body" key={item.title}>
+        // The key is the SELECTION ID (route.finding / areaId / findingId),
+        // not the finding title: record titles are data, and two findings
+        // can carry the same title (a page and a PR both named "Payments
+        // retry design"), which would collide on a title key and silently
+        // skip the panel-in exchange the key exists to trigger.
+        <div className="evidence-body" key={selectionId ?? item.title}>
           <h3>{item.title}</h3>
           <dl>
             <div>

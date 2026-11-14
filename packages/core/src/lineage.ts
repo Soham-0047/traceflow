@@ -98,8 +98,30 @@ function decisionStateFindings(decision: Decision, linked: WorkItem[]): Finding[
  * Trace an epic back to its recorded intent (pages, decisions) and forward to
  * its work and code. Gaps are evidence-based and respect data coverage.
  * Uses the shared graph index: one build serves every epic and every surface.
+ *
+ * The report is memoized per (graph, epicId) — like the risk reports —
+ * because `analyzeAll` alone used to run it three times per epic (gaps in
+ * overview, lineages, and inside epicImpact), and the UI rail repeats it
+ * per epic per render.
  */
+const TRACE_EPIC_CACHE = new WeakMap<OrgGraph, Map<string, LineageReport>>();
+
 export function traceEpic(graph: OrgGraph, epicId: string): LineageReport {
+  const epic = getIndex(graph).workById.get(epicId);
+  if (!epic || epic.type !== 'epic') throw new Error(`Unknown epic: ${epicId}`);
+  let perGraph = TRACE_EPIC_CACHE.get(graph);
+  if (!perGraph) {
+    perGraph = new Map<string, LineageReport>();
+    TRACE_EPIC_CACHE.set(graph, perGraph);
+  }
+  const cached = perGraph.get(epicId);
+  if (cached) return cached;
+  const report = computeEpicTrace(graph, epicId);
+  perGraph.set(epicId, report);
+  return report;
+}
+
+function computeEpicTrace(graph: OrgGraph, epicId: string): LineageReport {
   const index = getIndex(graph);
   const epic = index.workById.get(epicId);
   if (!epic || epic.type !== 'epic') throw new Error(`Unknown epic: ${epicId}`);
@@ -216,16 +238,11 @@ export function traceDecision(graph: OrgGraph, decisionId: string): DecisionRepo
   if (!decision) throw new Error(`Unknown decision: ${decisionId}`);
 
   // Linked work: items whose remote links point at the decision page, plus
-  // items the decision names directly. Canonical id order.
-  const linkedMap = new Map<string, WorkItem>();
-  for (const item of index.workByLinkedPageId.get(decision.ref.id) ?? []) {
-    linkedMap.set(item.ref.id, item);
-  }
-  for (const wid of decision.linkedWorkItemIds ?? []) {
-    const item = index.workById.get(wid);
-    if (item) linkedMap.set(item.ref.id, item);
-  }
-  const linked = [...linkedMap.values()].sort(byRefId);
+  // items the decision names directly. Canonical id order. Built once in
+  // the shared graph index (workByDecisionId) — traceDecision,
+  // decisionImpact and the scope-join answer all read the same map, so
+  // they agree by construction instead of by copy-paste.
+  const linked = index.workByDecisionId.get(decision.ref.id) ?? [];
 
   const roles = new Map<string, Set<string>>();
   const addRole = (personId: string | undefined, role: string) => {

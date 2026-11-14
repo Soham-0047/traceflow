@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { DataAdapter } from '@traceflow/core';
 import { DataProvider } from './data';
@@ -28,9 +29,37 @@ interface ShellProps {
 
 function Shell({ sourceNote, footerNote }: ShellProps) {
   const route = useRoute();
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Focus management: when the VIEW changes (nav link, wordmark, back/forward),
+  // move focus to <main> so keyboard and screen-reader users land on the new
+  // view instead of the stale document.body. Subject/finding changes WITHIN a
+  // view keep focus where it is — the ledger rows and rail links that caused
+  // them stay focused, which is the correct in-view behaviour.
+  const prevView = useRef<View>(route.view);
+  useEffect(() => {
+    if (prevView.current !== route.view) {
+      prevView.current = route.view;
+      mainRef.current?.focus({ preventScroll: true });
+      mainRef.current?.scrollIntoView?.({ block: 'start' });
+    }
+  }, [route.view]);
+
   return (
     <>
-      <a className="skip" href="#main">
+      {/* The skip link must not touch the hash: href="#main" sets
+          location.hash, which the hash router parses as an unknown view and
+          silently routes to Overview. It is a same-document fragment jump,
+          handled here directly. */}
+      <a
+        className="skip"
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          mainRef.current?.focus();
+          mainRef.current?.scrollIntoView?.({ block: 'start' });
+        }}
+      >
         Skip to content
       </a>
       <header className="topbar">
@@ -55,11 +84,13 @@ function Shell({ sourceNote, footerNote }: ShellProps) {
           {sourceNote ? <p className="sample-note">{sourceNote}</p> : null}
         </div>
       </header>
-      <main id="main" tabIndex={-1}>
-        {/* The view key (route id) remounts the content on navigation, so
-            each view settles into place once (the view-in animation) and
-            same-view finding changes do not replay the entrance. */}
-        <div className="view" key={route.view + (route.id ?? '')}>
+      <main id="main" ref={mainRef} tabIndex={-1}>
+        {/* Keyed by VIEW only (not id): subject and finding changes reconcile
+            in place, so focus, the Ask input's IME/selection state and the
+            auto-select effects survive them, and each view's entrance settles
+            exactly once per view switch. The Ask answer card keys its own
+            exchange by question. */}
+        <div className="view" key={route.view}>
           {route.view === 'overview' ? <OverviewView /> : null}
           {route.view === 'ask' ? <AskView /> : null}
           {route.view === 'people' ? <PeopleView /> : null}

@@ -8,6 +8,7 @@ function isOrgGraph(value: unknown): value is OrgGraph {
     Array.isArray((value as OrgGraph).people) &&
     Array.isArray((value as OrgGraph).workItems) &&
     Array.isArray((value as OrgGraph).pages) &&
+    Array.isArray((value as OrgGraph).pullRequests) &&
     Array.isArray((value as OrgGraph).decisions)
   );
 }

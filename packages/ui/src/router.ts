@@ -30,8 +30,22 @@ export function parseHash(hash: string): Route {
     .replace(/^#\/?/, '')
     .split('/')
     .filter(Boolean)
-    .map((p) => decodeURIComponent(p));
+    // A hand-edited hash can carry a bare '%' or a truncated escape, which
+    // decodeURIComponent turns into a URIError thrown during render — with
+    // no error boundary in the package, the whole app white-screens. A bad
+    // segment falls back to its raw text: the matcher can still refuse it
+    // honestly ("no such person"), which beats a blank page every time.
+    .map((p) => {
+      try {
+        return decodeURIComponent(p);
+      } catch {
+        return p;
+      }
+    });
   const view = VIEWS.find((v) => v === parts[0]) ?? 'overview';
+  // An unknown first segment ('#/settings/people') must not leak the rest
+  // into the Overview route's id: the app shows a clean Overview instead.
+  if (view !== parts[0]) return { view: 'overview' };
   // `#/impact/epic` and `#/impact/epic/PAY-1/finding/<id>` — the kind segment
   // shifts every later position. A bare kind URL (no id) is also a kind route:
   // the view auto-selects the first epic or decision. The only cost: a person

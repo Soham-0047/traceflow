@@ -49,6 +49,11 @@ interface RecordTokens {
 interface MatcherIndex {
   /** Each person-name content token -> the people sharing it (distinctiveness). */
   personTokenHolders: Map<string, Set<Person>>;
+  /** Per-person name tokens and lowercased id, precomputed once: matchPerson
+   *  used to re-tokenize every person's name on every question (normalize +
+   *  split + stop-word filter per person per question) in the hottest NLU
+   *  lane. Order follows graph.people, so matchPerson can walk pairs. */
+  personProfiles: { person: Person; nameTokens: string[]; idWord: string }[];
   epicRecords: RecordTokens[];
   epicDistinctive: Set<string>[];
   decisionRecords: RecordTokens[];
@@ -59,8 +64,11 @@ const MATCHER_CACHE = new WeakMap<OrgGraph, MatcherIndex>();
 
 function buildMatcherIndex(graph: OrgGraph): MatcherIndex {
   const personTokenHolders = new Map<string, Set<Person>>();
+  const personProfiles: { person: Person; nameTokens: string[]; idWord: string }[] = [];
   for (const person of graph.people) {
-    for (const token of personNameTokens(person)) {
+    const nameTokens = personNameTokens(person);
+    personProfiles.push({ person, nameTokens, idWord: person.id.toLowerCase() });
+    for (const token of nameTokens) {
       const holders = personTokenHolders.get(token) ?? new Set<Person>();
       holders.add(person);
       personTokenHolders.set(token, holders);
@@ -80,6 +88,7 @@ function buildMatcherIndex(graph: OrgGraph): MatcherIndex {
 
   return {
     personTokenHolders,
+    personProfiles,
     epicRecords,
     epicDistinctive: distinctiveTokens(epicRecords.map((r) => r.titleTokens)),
     decisionRecords,
@@ -119,6 +128,28 @@ function rawWords(question: string): string[] {
     .split(/[^A-Za-z0-9-]+/)
     .filter((w) => w.length > 0)
     .map((w) => w.toLowerCase());
+}
+
+/**
+ * Word-boundary containment: `needle` appears in `lower` as a whole word
+ * (or several), never as the inside of a longer word. The full-name and
+ * full-title lanes (0.95) must not fire from substrings: a person named
+ * "Sam" once matched inside "at the same time", and an epic titled
+ * "Payments" inside "the payments service is slow", because plain
+ * includes() has no edges. A boundary is the string start/end or a
+ * non-alphanumeric neighbour; the dash counts as a boundary both ways
+ * ("same" still does not match, "PAY-1" still does when matched whole).
+ */
+function containsAsWord(lower: string, needle: string): boolean {
+  if (needle.length === 0) return false;
+  let at = lower.indexOf(needle);
+  while (at !== -1) {
+    const before = at > 0 && /[A-Za-z0-9]/.test(lower.charAt(at - 1));
+    const after = at + needle.length < lower.length && /[A-Za-z0-9]/.test(lower.charAt(at + needle.length));
+    if (!before && !after) return true;
+    at = lower.indexOf(needle, at + 1);
+  }
+  return false;
 }
 
 /**
@@ -196,20 +227,22 @@ export function matchPerson(graph: OrgGraph, question: string): PersonMatch {
   const qTokens = tokens(q);
   const words = new Set(rawWords(q));
 
+  const index = getMatcherIndex(graph);
   // Uniqueness of each name token across people, for the distinctive lane.
-  const tokenHolders = getMatcherIndex(graph).personTokenHolders;
+  const tokenHolders = index.personTokenHolders;
 
   const scored: ScoredCandidate<Person>[] = [];
-  for (const person of graph.people) {
+  for (const { person, nameTokens, idWord } of getMatcherIndex(graph).personProfiles) {
     if (q === person.id) {
       scored.push({ item: person, score: 1 });
       continue;
     }
-    const nameTokens = personNameTokens(person);
-    const idWord = person.id.toLowerCase();
     let score = 0;
 
-    if (lower.includes(normalize(person.name))) score = 0.95;
+    // 0.95 requires the full name as whole word(s): "Sam" must not match
+    // inside "at the same time" — the same phantom-person class the
+    // directional prefix lane already fixed for itself.
+    if (containsAsWord(lower, normalize(person.name))) score = 0.95;
     else {
       if (words.has(idWord) && idWord.length >= 3) score = 0.8;
       const matched = nameTokens.filter((t) => qTokens.some((w) => nameTokenMatches(w, t)));
@@ -239,11 +272,31 @@ export function matchPerson(graph: OrgGraph, question: string): PersonMatch {
  * the first word (usually just the sentence start) and not a record key like
  * PAY-1. Reported so the engine says "no such person" instead of silently
  * answering a different question.
+ *
+ * The first word IS scanned when it is not a question word, article or
+ * common auxiliary: "Zed's risk profile?" leads with the unknown name
+ * itself, and skipping the first token unconditionally let it fall
+ * through to the free-question arbitration (which answered a ranking of
+ * the whole org instead of refusing). Grammar words are whitelisted
+ * because they legitimately open a sentence about somebody else:
+ * "What breaks if Mars leaves?" flags Mars, not "What".
  */
+const SENTENCE_START_GRAMMAR = new Set([
+  'what', 'who', 'whom', 'whose', 'when', 'where', 'why', 'how',
+  'which', 'the', 'a', 'an', 'is', 'are', 'was', 'were', 'does', 'do',
+  'did', 'can', 'could', 'should', 'would', 'will', 'shall', 'may', 'have',
+  'has', 'had', 'in', 'on', 'at', 'for', 'about', 'list', 'show', 'give',
+  'tell', 'get', 'find', 'trace', 'rank',
+]);
+
 function unmatchedPersonMention(question: string): PersonMatch {
-  for (const token of question.split(/\s+/).slice(1)) {
+  const raw = question.split(/\s+/);
+  for (const [i, token] of raw.entries()) {
     const word = token.replace(/[^A-Za-z'-]/g, '');
-    if (/^[A-Z][a-z']{2,}$/.test(word)) return { unmatchedMention: word };
+    if (/^[A-Z][a-z']{2,}$/.test(word)) {
+      if (i === 0 && SENTENCE_START_GRAMMAR.has(word.toLowerCase())) continue;
+      return { unmatchedMention: word };
+    }
   }
   return {};
 }
@@ -342,7 +395,11 @@ interface RecordScorerInput {
 function scoreRecord(input: RecordScorerInput): number {
   const { words, idLower, lower, qTokens, titleTokens, titleLower, distinctive, hasDomainWord } = input;
   if (words.has(idLower)) return 1;
-  if (titleLower.length >= 3 && lower.includes(titleLower)) return 0.95;
+  // 0.95 requires the full title as whole word(s): an epic titled
+  // "Payments" is not the same word as "payments" inside "the payments
+  // service is slow" — substring containment produced phantom epic
+  // answers there.
+  if (titleLower.length >= 3 && containsAsWord(lower, titleLower)) return 0.95;
 
   const matched = titleTokens.filter((t) => qTokens.some((w) => nameTokenMatches(w, t)));
   if (titleTokens.length > 0 && matched.length === titleTokens.length) return 0.88;

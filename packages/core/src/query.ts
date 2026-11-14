@@ -179,17 +179,12 @@ function decisionsBlockingEpicWork(graph: OrgGraph, epicId: string): Decision[] 
   const candidates: Decision[] = [];
   for (const decision of graph.decisions) {
     if (decision.status !== 'proposed' && decision.status !== 'superseded') continue;
-    // The same linkage traceDecision uses, both directions: work whose remote
-    // links point at the decision page, plus work the decision names directly.
-    const linked = new Map<string, WorkItem>();
-    for (const item of index.workByLinkedPageId.get(decision.ref.id) ?? []) {
-      linked.set(item.ref.id, item);
-    }
-    for (const wid of decision.linkedWorkItemIds ?? []) {
-      const item = index.workById.get(wid);
-      if (item) linked.set(item.ref.id, item);
-    }
-    const blocks = [...linked.values()].some((w) => w.epicId === epicId && w.status === 'open');
+    // The same linkage traceDecision uses, both directions, now read from
+    // the shared index (workByDecisionId): work whose remote links point
+    // at the decision page, plus work the decision names directly.
+    const blocks = (index.workByDecisionId.get(decision.ref.id) ?? []).some(
+      (w) => w.epicId === epicId && w.status === 'open',
+    );
     if (blocks) candidates.push(decision);
   }
   return candidates.sort((a, b) => a.ref.id.localeCompare(b.ref.id));
@@ -216,7 +211,25 @@ function describeJoinedDecision(graph: OrgGraph, decision: Decision): string {
  * Answer rendering (deterministic templates)
  * ------------------------------------------------------------------ */
 
-const cap = (refs: RecordRef[], max = 20): RecordRef[] => refs.slice(0, max);
+/**
+ * Evidence lists are capped for message size, but capped by IDENTITY, not by
+ * position: an epic with 15 open children repeats its own ref in every
+ * stalled-epic area, and a naive slice keeps the duplicates while silently
+ * dropping the last children the answer text still counts. Dedupe by
+ * source:id first (first occurrence wins, canonical order preserved), then
+ * slice.
+ */
+const cap = (refs: RecordRef[], max = 20): RecordRef[] => {
+  const seen = new Set<string>();
+  const unique: RecordRef[] = [];
+  for (const ref of refs) {
+    const key = `${ref.source}:${ref.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(ref);
+  }
+  return unique.slice(0, max);
+};
 
 function renderTopRisks(ranked: PersonRiskReport[]): string {
   const top = ranked.slice(0, 3);

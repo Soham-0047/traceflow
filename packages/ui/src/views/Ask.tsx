@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { answerQuery } from '@traceflow/core';
 import type { AnswerIntent, AnswerResult, OrgGraph, RecordRef } from '@traceflow/core';
@@ -46,7 +46,11 @@ export function AskView() {
 
 function ask(question: string): void {
   const q = question.trim();
-  if (q) go({ view: 'ask', id: q }, true);
+  // A question is a real history entry, not a replace: Back from an answered
+  // question returns to the previous question (or the previous view), and
+  // Forward replays it. Replacing collapsed the whole Ask session into one
+  // entry, contradicting the view's own contract above.
+  if (q) go({ view: 'ask', id: q });
 }
 
 function AskReady({ graph }: { graph: OrgGraph }) {
@@ -57,6 +61,18 @@ function AskReady({ graph }: { graph: OrgGraph }) {
   const [draft, setDraft] = useState(question ?? '');
   useEffect(() => {
     setDraft(question ?? '');
+  }, [question]);
+
+  // After an ask, focus returns to the input: consecutive questions should
+  // not need a re-click (a submit button click naturally parks focus on the
+  // button; the input DOM node itself survives the answer rendering).
+  const inputRef = useRef<HTMLInputElement>(null);
+  const askedRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (question !== undefined && question !== askedRef.current) {
+      askedRef.current = question;
+      inputRef.current?.focus();
+    }
   }, [question]);
 
   const result = useMemo(() => (question ? answerQuery(graph, question) : null), [graph, question]);
@@ -93,6 +109,7 @@ function AskReady({ graph }: { graph: OrgGraph }) {
             Your question
           </label>
           <input
+            ref={inputRef}
             id="ask-input"
             className="ask-input"
             type="text"
@@ -117,7 +134,12 @@ function AskReady({ graph }: { graph: OrgGraph }) {
           ))}
         </ul>
 
-        {result ? <AnswerCard result={result} /> : null}
+        {/* Keyed by question: each answer settles in with the panel-in
+            exchange as it arrives, and a repeated question (Back, Forward,
+            chip re-click) lands on the same node. The view wrapper no
+            longer remounts per question, so the input keeps focus and IME
+            state across asks. */}
+        {result ? <AnswerCard result={result} key={result.question} /> : null}
       </div>
     </div>
   );

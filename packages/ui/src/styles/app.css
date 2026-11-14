@@ -217,7 +217,6 @@ th.num { font-family: var(--font-body); }
 .state-error h1, .state-error h2 { color: var(--color-error); }
 .sk-stack { display: grid; gap: var(--space-sm); width: min(100%, 42rem); }
 .sk { display: block; border-radius: var(--radius-input); background: var(--color-paper-3); animation: sk-pulse 1.3s var(--ease-in-out) infinite alternate; }
-@keyframes sk-sheen { from { transform: translate3d(-100%, 0, 0); } to { transform: translate3d(200%, 0, 0); } }
 .sk-title { height: 2rem; width: 40%; }
 .sk-row { height: 2.75rem; }
 @keyframes sk-pulse { from { opacity: 0.5; } to { opacity: 1; } }

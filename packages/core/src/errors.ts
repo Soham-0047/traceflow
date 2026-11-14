@@ -1,3 +1,5 @@
+import { LIMITS } from './validate.js';
+
 /** Base class for every error TraceFlow raises deliberately. */
 export class TraceFlowError extends Error {
   constructor(message: string) {
@@ -27,7 +29,7 @@ export interface ValidationIssueLike {
 }
 
 /** Format issues for humans, capping the list so a hostile input cannot flood logs. */
-export function formatIssues(issues: readonly ValidationIssueLike[], cap = 20): string {
+export function formatIssues(issues: readonly ValidationIssueLike[], cap = LIMITS.maxIssuesInMessage): string {
   const shown = issues.slice(0, cap);
   const lines = shown.map((i) => `  - ${i.path}: ${i.message}`);
   if (issues.length > cap) lines.push(`  - …and ${issues.length - cap} more`);

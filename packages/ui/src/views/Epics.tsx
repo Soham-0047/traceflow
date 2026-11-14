@@ -140,7 +140,7 @@ function EpicsReady({ graph }: { graph: OrgGraph }) {
         )}
       </section>
 
-      <EvidencePanel item={evidence} />
+      <EvidencePanel item={evidence} selectionId={route.finding} />
     </div>
   );
 }

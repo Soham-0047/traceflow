@@ -18,6 +18,27 @@ describe('router', () => {
     expect(parseHash(hrefFor(route))).toEqual(route);
     expect(parseHash('')).toEqual({ view: 'overview', id: undefined, finding: undefined });
   });
+
+  it('never throws on malformed percent escapes (session 17)', () => {
+    // A hand-edited hash with a bare '%' used to throw URIError inside
+    // render and white-screen the whole app (no error boundary). The bad
+    // segment survives as raw text for the matcher to refuse honestly.
+    expect(parseHash('#/people/%')).toEqual({ view: 'people', id: '%', finding: undefined });
+    expect(parseHash('#/ask/what%20is%20100%')).toEqual({
+      view: 'ask',
+      // The trailing bare '%' breaks the whole segment's decode, so the
+      // segment falls back raw — degraded, readable, never a throw.
+      id: 'what%20is%20100%',
+      finding: undefined,
+    });
+  });
+
+  it('drops junk ids from unknown-view hashes (session 17)', () => {
+    // '#/settings/people' must render a clean Overview, not an Overview
+    // whose remount key carries a phantom 'people' id.
+    expect(parseHash('#/settings/people')).toEqual({ view: 'overview', id: undefined, finding: undefined });
+    expect(parseHash('#/main')).toEqual({ view: 'overview', id: undefined, finding: undefined });
+  });
 });
 
 describe('Overview', () => {

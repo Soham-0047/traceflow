@@ -101,6 +101,33 @@ describe('answerQuery — the six answerable intents', () => {
   });
 });
 
+describe('answerQuery — session 17: evidence caps by identity', () => {
+  it('dedupes repeated refs before capping, so unique records are never crowded out', () => {
+    // One epic, 15 open children assigned to one person. Every stalled-epic
+    // area carries [epic.ref, ...item refs]; the old slice(0, 20) kept up to
+    // 10 duplicate epic refs and silently dropped the last 5 children while
+    // the answer text still said "15 open issue(s)".
+    const items = Array.from({ length: 15 }, (_, i) => ({
+      ref: { source: 'jira', id: `PAY-${100 + i}`, url: undefined, title: `Open work ${i + 1}` },
+      type: 'issue',
+      status: 'open',
+      assigneeId: 'alex',
+      epicId: 'PAY-1',
+    })) as unknown as OrgGraph['workItems'];
+    const graph: OrgGraph = { ...sampleGraph, workItems: [...sampleGraph.workItems, ...items] };
+    const result = answerQuery(graph, 'What is the impact of the payments reliability epic?');
+    expect(result.understood).toBe(true);
+    expect(result.intent).toBe('epic-impact');
+    const ids = result.evidence.map((r) => r.id);
+    expect(new Set(ids).size).toBe(ids.length); // no duplicates survive the cap
+    expect(ids).toContain('PAY-1');               // the epic itself once
+    for (let i = 0; i < 15; i++) expect(ids).toContain(`PAY-${100 + i}`); // every child kept
+    // The impact answer states the real unique count (4 fixture children
+    // + 15 synthetic = 19 open), and the capped evidence keeps no duplicate.
+    expect(result.answer).toContain('19 open');
+  });
+});
+
 describe('answerQuery — honest failure modes', () => {
   it('says when it cannot map a question, and lists what it can answer', () => {
     const result = answerQuery(sampleGraph, 'what is the weather on mars?');

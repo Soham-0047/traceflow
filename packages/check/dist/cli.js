@@ -4,29 +4,6 @@
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
-// ../core/src/errors.ts
-var TraceFlowError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "TraceFlowError";
-  }
-};
-var ValidationError = class extends TraceFlowError {
-  issues;
-  constructor(issues, context = "input") {
-    super(`${issues.length} validation error(s) in ${context}:
-${formatIssues(issues)}`);
-    this.name = "ValidationError";
-    this.issues = issues;
-  }
-};
-function formatIssues(issues, cap = 20) {
-  const shown = issues.slice(0, cap);
-  const lines = shown.map((i) => `  - ${i.path}: ${i.message}`);
-  if (issues.length > cap) lines.push(`  - \u2026and ${issues.length - cap} more`);
-  return lines.join("\n");
-}
-
 // ../core/src/validate.ts
 var LIMITS = {
   /** OrgGraph JSON exports accepted by parseOrgGraphJson. */
@@ -349,6 +326,29 @@ function parseOrgGraphJson(text, context = "OrgGraph export") {
   return { graph, warnings };
 }
 
+// ../core/src/errors.ts
+var TraceFlowError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "TraceFlowError";
+  }
+};
+var ValidationError = class extends TraceFlowError {
+  issues;
+  constructor(issues, context = "input") {
+    super(`${issues.length} validation error(s) in ${context}:
+${formatIssues(issues)}`);
+    this.name = "ValidationError";
+    this.issues = issues;
+  }
+};
+function formatIssues(issues, cap = LIMITS.maxIssuesInMessage) {
+  const shown = issues.slice(0, cap);
+  const lines = shown.map((i) => `  - ${i.path}: ${i.message}`);
+  if (issues.length > cap) lines.push(`  - \u2026and ${issues.length - cap} more`);
+  return lines.join("\n");
+}
+
 // ../core/src/graph-index.ts
 function pushTo(map, key, value) {
   const bucket = map.get(key);
@@ -377,11 +377,24 @@ function buildGraphIndex(graph) {
   for (const page of graph.pages) if (!pagesById.has(page.ref.id)) pagesById.set(page.ref.id, page);
   const decisionsById = /* @__PURE__ */ new Map();
   const decisionsByLinkedWorkItemId = /* @__PURE__ */ new Map();
+  const workByDecisionId = /* @__PURE__ */ new Map();
   for (const decision of graph.decisions) {
     if (!decisionsById.has(decision.ref.id)) decisionsById.set(decision.ref.id, decision);
     for (const workId of decision.linkedWorkItemIds ?? []) {
       pushTo(decisionsByLinkedWorkItemId, workId, decision);
     }
+    const linked = /* @__PURE__ */ new Map();
+    for (const item of workByLinkedPageId.get(decision.ref.id) ?? []) {
+      linked.set(item.ref.id, item);
+    }
+    for (const wid of decision.linkedWorkItemIds ?? []) {
+      const item = workById.get(wid);
+      if (item) linked.set(item.ref.id, item);
+    }
+    workByDecisionId.set(
+      decision.ref.id,
+      [...linked.values()].sort((a, b) => a.ref.id.localeCompare(b.ref.id))
+    );
   }
   const pullRequestsById = /* @__PURE__ */ new Map();
   for (const pr of graph.pullRequests) {
@@ -397,7 +410,8 @@ function buildGraphIndex(graph) {
     pullRequestsById,
     workByLinkedPageId,
     workByLinkedPullRequestId,
-    decisionsByLinkedWorkItemId
+    decisionsByLinkedWorkItemId,
+    workByDecisionId
   };
 }
 var INDEX_CACHE = /* @__PURE__ */ new WeakMap();

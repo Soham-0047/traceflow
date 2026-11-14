@@ -4,6 +4,14 @@ import type { OrgGraph } from '../src/index.js';
 
 const kinds = (r: { gaps: { kind: string }[] }) => r.gaps.map((g) => g.kind).sort();
 
+describe('epic trace memo (session 17)', () => {
+  it('returns the identical report on repeat calls, one trace per epic per graph', () => {
+    const first = traceEpic(sampleGraph, 'PAY-1');
+    const second = traceEpic(sampleGraph, 'PAY-1');
+    expect(second).toBe(first); // memo hit: analyzeAll used to trace 3x per epic
+  });
+});
+
 describe('traceEpic', () => {
   it('builds the PAY-1 chain across intent, plan, work and code', () => {
     const r = traceEpic(sampleGraph, 'PAY-1');
