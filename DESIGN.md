@@ -26,7 +26,7 @@ Spacing, type scale (ratio 1.2), easings and durations live in `tokens.css`. Mon
 - Secondary: none yet; when needed, outline with the same radius and height
 
 ## Motion
-- Character: calm. Motion is state only (colour, opacity, border); no reveal, no orchestration. Under reduced motion everything ends at once.
+- Character: calm, now with range. Revised on purpose for the 2026-11-14 visual overhaul (session 16): motion is still state-first (colour, opacity, border), and the two sanctioned additions are (a) **entrance and selection transitions** on transform and opacity — a view or a card settles into place once, an evidence card cross-fades when the finding changes — never a hover-only decoration, and (b) **one scroll-choreography pattern per page** (gate F8): the landing page's sections rise as they enter the viewport. Every keyframe or transform transition ships inside the existing `prefers-reduced-motion: reduce` blocks, which collapse everything to its end state at once. Numbers never animate their value (a count-up would imply the score is not computed; it is). No reveal depends on script: entrances animate **from visible** (`@keyframes` start at the resting state and settle), so a failed script leaves the page fully readable, per gate 62.
 
 ## Exports
 `tokens.css` in this project. Tailwind, DTCG or shadcn blocks on request, per `.claude/skills/hallmark/references/export-formats.md`.

@@ -1,7 +1,7 @@
 /* Hallmark · shape: app screen · genre: modern-minimal · theme: Coral (deal 1/3, seed evidence-first-knowledge-risk-investigation-dashboard-f147·8780bd5c·2026-11-01·r0)
  * nav: top bar with four destinations · signature: the handover ledger, a table whose records, weights and points add up in view · states: loading, empty, error, full
- * axes: light/grotesk-sans/warm · posture: restrained · contrast: pass · v2.0.0 */
-/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V3 · weakest: V, the shell follows the app-screen standard on purpose; variety lives in the ledger and the lane diagram */
+ * axes: light/grotesk-sans/warm · posture: restrained with range (DESIGN.md motion v2) · contrast: pass · v3.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: V, the shell follows the app-screen standard on purpose; variety lives in the ledger, the lane diagram and the motion system */
 /* Hallmark · answered F4 · the selected segment of the ledger bar takes the accent fill because it is a chart mark showing the current finding, not a second primary button */
 /* Hallmark · answered F25 · the ledger keeps its five columns and scrolls sideways with a swipe hint on a phone, because restacking the rows would hide the records, weight and points arithmetic the ledger exists to show */
 /* Hallmark · waive 39b · row buttons stand 66px, finding rows 65px, lane nodes up to 91px · they are content-bearing app rows with two or three text lines each and a 44px hit target, not marketing controls */
@@ -9,6 +9,59 @@
 /* Hallmark · waive 80 · div.lanes renders as a drawn illustration · it is the labelled HTML and SVG lane diagram of decision D9, with named lanes and record nodes */
 @import url("./tokens.css");
 @import url("./base.css");
+
+/* ------------------------------------------------------------------ *
+ * Motion primitives (DESIGN.md motion v2, session 16). Entrances
+ * animate FROM the resting state, so nothing is hidden at rest
+ * (gate 62) and a script failure leaves every view fully readable.
+ * Selection exchanges cross-fade the changed surface (evidence card,
+ * answer result) via the same keyframes. All transform-and-opacity,
+ * bounded to 16px of travel, and collapsed to their end state by the
+ * reduced-motion block in base.css.
+ * ------------------------------------------------------------------ */
+@keyframes view-in {
+  from { opacity: 0.999; transform: translate3d(0, 12px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes panel-in {
+  from { opacity: 0.999; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes bar-grow {
+  from { transform: scaleX(0.4); }
+  to { transform: scaleX(1); }
+}
+@keyframes edge-draw {
+  from { stroke-dashoffset: var(--lane-len, 320); }
+  to { stroke-dashoffset: 0; }
+}
+
+/* Each view settles into place once, as it mounts. */
+.view { animation: view-in var(--dur-entrance) var(--ease-out) backwards; }
+
+/* The evidence card cross-fades its content when the finding changes;
+   the card itself never moves (it is the stable surface the findings
+   play against). The .evidence-body key forces the exchange by
+   remounting the content node on a finding change. */
+.evidence-body { animation: panel-in var(--dur-exchange) var(--ease-out) both; }
+
+/* The handover ledger's score-share bar: each segment grows from its
+   own centre once when the ledger mounts, then hands selection
+   quietly (background-color) as before. */
+.ledger-bar button { transform-origin: center; animation: bar-grow var(--dur-short) var(--ease-out) backwards; }
+
+/* The lane diagram's edges draw themselves when the diagram mounts:
+   each path carries its own length as --lane-len (set in Lanes.tsx),
+   the dasharray stencils the full length, and the offset animates from
+   full to none. Active edges keep the accent stroke they already had. */
+.lane-edges path { stroke-dasharray: var(--lane-len, 320); animation: edge-draw var(--dur-long) var(--ease-out) backwards; }
+
+/* The answer card settles in when an answer arrives (or the honest
+   miss does) — the exchange, not the loading, is the moment. */
+.ask-result { animation: panel-in var(--dur-exchange) var(--ease-out) backwards; }
+
+/* Impact verdict counts settle in a hair apart from their section. */
+.impact-verdict { animation: panel-in var(--dur-exchange) var(--ease-out) 60ms backwards; }
 
 /* Shell */
 .skip { position: absolute; left: var(--space-md); top: -100px; z-index: var(--z-tooltip); padding: var(--space-xs) var(--space-sm); background: var(--color-ink); color: var(--color-paper); border-radius: var(--radius-input); }
@@ -154,8 +207,9 @@ th.num { font-family: var(--font-body); }
 .caveats ul { margin: 0 0 var(--space-md); padding-left: var(--space-md); display: grid; gap: var(--space-xs); }
 
 /* Buttons */
-.btn { min-height: 40px; padding-inline: var(--space-md); border-radius: var(--radius-input); border: var(--rule-hair) solid var(--color-ink); background: var(--color-ink); color: var(--color-paper); font-weight: 500; cursor: pointer; transition: background-color var(--dur-micro) var(--ease-out); }
-.btn:hover { background: var(--color-ink-2); }
+.btn { min-height: 40px; padding-inline: var(--space-md); border-radius: var(--radius-input); border: var(--rule-hair) solid var(--color-ink); background: var(--color-ink); color: var(--color-paper); font-weight: 500; cursor: pointer; transition: background-color var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out); }
+.btn:hover { background: var(--color-ink-2); transform: translate3d(0, -1px, 0); }
+.btn:active { transform: translate3d(0, 0, 0); }
 
 /* States */
 .state { display: grid; gap: var(--space-sm); justify-items: start; padding: var(--space-xl) 0; max-width: 42rem; }
@@ -163,6 +217,7 @@ th.num { font-family: var(--font-body); }
 .state-error h1, .state-error h2 { color: var(--color-error); }
 .sk-stack { display: grid; gap: var(--space-sm); width: min(100%, 42rem); }
 .sk { display: block; border-radius: var(--radius-input); background: var(--color-paper-3); animation: sk-pulse 1.3s var(--ease-in-out) infinite alternate; }
+@keyframes sk-sheen { from { transform: translate3d(-100%, 0, 0); } to { transform: translate3d(200%, 0, 0); } }
 .sk-title { height: 2rem; width: 40%; }
 .sk-row { height: 2.75rem; }
 @keyframes sk-pulse { from { opacity: 0.5; } to { opacity: 1; } }

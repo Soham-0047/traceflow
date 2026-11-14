@@ -48,7 +48,10 @@ export function EvidencePanel({ item }: { item?: EvidenceItem }) {
           Select a finding to see why it was flagged and which records support it.
         </p>
       ) : (
-        <div className="evidence-body">
+        // The key is the finding's identity: when the finding changes the
+        // content node remounts and the panel-in exchange runs; when it does
+        // not, nothing replays.
+        <div className="evidence-body" key={item.title}>
           <h3>{item.title}</h3>
           <dl>
             <div>

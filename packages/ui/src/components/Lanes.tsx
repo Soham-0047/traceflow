@@ -19,6 +19,8 @@ interface EdgePath {
   d: string;
   from: string;
   to: string;
+  /** The edge's own length, so the draw-in dashes exactly it. */
+  len: number;
 }
 
 export function Lanes({
@@ -103,18 +105,23 @@ export function Lanes({
           : { x: end?.x ?? br.right - box.left, y: end?.y ?? br.top + br.height / 2 - box.top };
         const right = forward
           ? { x: end?.x ?? br.left - box.left, y: end?.y ?? br.top + br.height / 2 - box.top }
-          : { x: start?.x ?? ar.left - box.left, y: start?.y ?? ar.top + ar.height / 2 - box.top };
+          : { x: start?.x ?? ar.left - box.left, y: start?.y ?? br.top + br.height / 2 - box.top };
         // Give each edge its own slice of the gutter (by its anchor order on the
         // source) so parallel links fan out instead of collapsing into one bundle.
         const t = start && start.n > 1 ? start.i / (start.n - 1) : 0.5;
         const dx = right.x - left.x;
         const c1x = left.x + dx * (0.2 + 0.6 * t);
         const c2x = left.x + dx * (0.8 - 0.6 * t);
+        // The edge's own length (endpoints plus a little curve slack) rides
+        // the path as a custom property, so the draw-in animation dashes
+        // exactly its own length.
+        const len = Math.round(Math.hypot(dx, right.y - left.y) * 1.2);
         next.push({
           key: `${e.from}|${e.to}|${e.kind}`,
           d: `M${left.x},${left.y} C${c1x},${left.y} ${c2x},${right.y} ${right.x},${right.y}`,
           from: e.from,
           to: e.to,
+          len,
         });
       }
       setPaths(next);
@@ -136,6 +143,7 @@ export function Lanes({
           <path
             key={p.key}
             d={p.d}
+            style={{ ['--lane-len' as string]: p.len }}
             data-active={selectedId !== undefined && (p.from === selectedId || p.to === selectedId)}
           />
         ))}

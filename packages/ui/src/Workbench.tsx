@@ -56,12 +56,17 @@ function Shell({ sourceNote, footerNote }: ShellProps) {
         </div>
       </header>
       <main id="main" tabIndex={-1}>
-        {route.view === 'overview' ? <OverviewView /> : null}
-        {route.view === 'ask' ? <AskView /> : null}
-        {route.view === 'people' ? <PeopleView /> : null}
-        {route.view === 'impact' ? <ImpactView /> : null}
-        {route.view === 'epics' ? <EpicsView /> : null}
-        {route.view === 'decisions' ? <DecisionsView /> : null}
+        {/* The view key (route id) remounts the content on navigation, so
+            each view settles into place once (the view-in animation) and
+            same-view finding changes do not replay the entrance. */}
+        <div className="view" key={route.view + (route.id ?? '')}>
+          {route.view === 'overview' ? <OverviewView /> : null}
+          {route.view === 'ask' ? <AskView /> : null}
+          {route.view === 'people' ? <PeopleView /> : null}
+          {route.view === 'impact' ? <ImpactView /> : null}
+          {route.view === 'epics' ? <EpicsView /> : null}
+          {route.view === 'decisions' ? <DecisionsView /> : null}
+        </div>
       </main>
       {footerNote ? (
         <footer className="foot">
