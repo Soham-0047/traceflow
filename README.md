@@ -4,7 +4,7 @@
 
 Built for Atlassian **Codegeist 2026** on Forge. First product: **Knowledge Risk & Decision Lineage**.
 
-> Status: the engine is architecture-hardened (one validated pipeline at every boundary, a shared graph index, deterministic answers, a grounding guard so no surface trusts an LLM for facts) and every pipeline is checked end to end by a 10-stage harness in CI. Built and tested: engine (risk, lineage, overview, impact), five-view Workbench, seven-tool MCP server, PR provenance gate, Forge app scaffold, seeder, landing page (159 tests, e2e green, Hallmark lint clean, axe-core a11y gate). The Forge app waits on a dev site; see [`docs/PROGRESS.md`](docs/PROGRESS.md) for exactly where things stand, and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the machine is built.
+> Status (session 18, 2026-11-20): the Forge app is **deployable as far as an offline check can tell** — its manifest is generated from the shared tool catalog and accepted by Atlassian's own validator in CI, it reads Jira and Confluence on the current APIs (Jira's enhanced search, Confluence v2) **as the viewing user** with a per-user cache, and it serves the Workbench, the Rovo agent and all nine tools through `rovo:mcp`. The same site loader powers an API-token export and a live MCP source, so the whole tool chain runs against a real site without Forge. 13-stage e2e harness, 399 tests, design and a11y gates green. It still waits on a dev site and `forge register`; see [`docs/PROGRESS.md`](docs/PROGRESS.md) for exactly where things stand, and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the machine is built.
 
 **Try it:** the landing page and the sample-data demo publish to `https://soham-0047.github.io/traceflow/` and `…/traceflow/demo/` — they go live after the one-time Pages source flip (repo Settings → Pages → Source: **GitHub Actions**; see [`docs/PROGRESS.md`](docs/PROGRESS.md), "Blockers needing Soham").
 
@@ -15,7 +15,8 @@ Built for Atlassian **Codegeist 2026** on Forge. First product: **Knowledge Risk
 - **Investigate a project or decision**: trace an outcome back to its intent and supporting evidence across Jira and Confluence.
 - **Evidence Drawer**: every finding shows what was detected, why, which records support it, and how confident it is.
 - **Rovo agent**: ask in natural language, e.g. "what are the biggest knowledge-continuity risks in this project?" The answer layer is deterministic — six intents, evidence records, honest "I cannot answer that" — and any LLM phrasing passes a grounding check that verifies people, records and numbers against the engine's facts, falling back to the engine's own words when it does not.
-- **MCP server**: the same engine as seven tools for any AI agent (Claude Desktop, Cursor) — `packages/mcp`.
+- **MCP, twice**: the same nine tools in the standalone MCP server for any AI agent (Claude Desktop, Cursor; `packages/mcp`) and inside the Forge app through `rovo:mcp`, from one catalog (`packages/core/src/tools.ts`).
+- **Live-site export**: `traceflow-export` reads a site with an API token and writes an `OrgGraph` export for the MCP server and the check gate (`--raw` dumps every REST response for spike S1).
 - **Check gate**: gate a pull request on decision provenance from an OrgGraph export — `packages/check`.
 
 ## Products
@@ -25,7 +26,7 @@ TraceFlow is one engine with several surfaces and satellites. [`PRODUCTS.md`](PR
 | Tier | Products |
 | --- | --- |
 | T1, ships for Codegeist 2026 | TF-01 Forge app, TF-02 Engine, TF-03 Workbench and public demo, TF-04 Rovo agent, TF-05 Seeder, TF-08 Site and docs |
-| T2, reinforces the submission | TF-06 MCP server (built: official SDK, six tools, protocol-tested), TF-07 Check (built: CLI + GitHub Action, tested) |
+| T2, reinforces the submission | TF-06 MCP server (built: official SDK, nine tools, protocol-tested, live-site source, and `rovo:mcp` inside the Forge app), TF-07 Check (built: CLI + GitHub Action, tested) |
 | T3, roadmap | TF-09 Cloud, TF-10 Connectors, TF-11 Impact (person blast radius shipped, promoted from T3), TF-12 Promises |
 
 ## Honest wording
@@ -43,12 +44,12 @@ TraceFlow provides *audit-ready evidence* and *decision traceability*. It does n
 | `docs/ARCHITECTURE.md` | The core architecture: pipeline, index, guarantees, the no-LLM-trust model, the e2e harness |
 | `docs/SPIKES.md` | The four Forge validation spikes |
 | `DESIGN.md` | Locked design system and product rules ([Hallmark](https://github.com/Nutlope/hallmark) is vendored in `.claude/skills/hallmark`) |
-| `packages/core` | Pure TypeScript engine: validation boundary (strict/best-effort), graph index + fingerprint, risk, impact, lineage, overview, deterministic answers, grounding guard, normalizers (tested, no runtime dependencies, browser-safe) |
+| `packages/core` | Pure TypeScript engine: the live-site loader (`site-loader.ts`, behind an injected requester) and the tool catalog (`tools.ts`); validation boundary (strict/best-effort), graph index + fingerprint, risk, impact, lineage, overview, deterministic answers, grounding guard, normalizers (tested, no runtime dependencies, browser-safe) |
 | `packages/ui` | The shared investigation UI: overview, people ledger, impact blast radius, epic lineage, decisions, evidence card |
 | `demo` | Thin host that serves the UI on sample data (published to GitHub Pages at `/demo/`) |
-| `packages/mcp` | MCP server: the engine as seven tools for any AI agent (official SDK, stdio, validated sources) |
+| `packages/mcp` | MCP server: the engine as nine tools for any AI agent (official SDK, stdio, validated sources, a live site via API token) and `traceflow-export` |
 | `packages/check` | The pull-request provenance gate: CLI + GitHub Action on an OrgGraph export |
-| `app/` | Forge app scaffold: manifest (placeholder app id), `getGraph` resolver with KVS cache, Custom UI hosting the Workbench |
+| `app/` | Forge app: generated manifest (validator-checked; placeholder app id until `forge register`), `getGraph` resolver, nine Rovo actions + `rovo:mcp`, per-user KVS cache, Custom UI hosting the Workbench |
 | `tools/seeder/` | Idempotent dev-site seeder for the demo story (dry-run by default) |
 | `site/` | The public landing page (published to GitHub Pages at `/`) |
 | `.github/workflows` | CI (verify), Pages (site + demo), and a manual Forge deploy workflow |
@@ -57,10 +58,34 @@ TraceFlow provides *audit-ready evidence* and *decision traceability*. It does n
 
 ```bash
 npm install
-npm run verify                 # typecheck, tests, build, e2e harness, design lint (app + page)
-npm run e2e                    # the 10-stage end-to-end harness alone (needs `npm run build` first)
+npm run verify                 # typecheck, tests, build, Forge check, e2e, design lint (app + page), a11y
+npm run e2e                    # the 13-stage end-to-end harness alone (needs `npm run build` first)
+npm run forge:check            # Atlassian's manifest validator + handler/resource cross-checks
 npm run dev -w @traceflow/demo # the demo on http://localhost:5173
 npm run seed -w @traceflow/seeder  # seed a dev site (dry-run by default; --apply to create)
 ```
 
-Requires Node 20+. The demo opens on the organization overview and shows sample data from a fictional team; add `?demo=loading`, `?demo=empty` or `?demo=error` to see the other states.
+Requires Node 20+.
+
+## Install
+
+**The Forge app (Jira + Rovo)** — needs a free Atlassian developer site:
+
+```bash
+npm install -g @forge/cli && forge login
+cd app && forge register && cd ..          # writes your app id into app/manifest.yml
+npm ci && npm run forge:build && npm run forge:check
+cd app && forge deploy --non-interactive -e development
+forge install --site <your-site>.atlassian.net --product jira --environment development
+```
+
+Then open Jira → Apps → **TraceFlow**, and ask **TraceFlow Risk Analyst** in Rovo chat. `app/README.md` has the details, including enabling the `rovo:mcp` tools for external MCP clients.
+
+**The MCP server on your own site** (no Forge needed):
+
+```bash
+npm ci && npm run build
+export ATLASSIAN_SITE_URL=https://<your-site>.atlassian.net ATLASSIAN_EMAIL=you@example.com ATLASSIAN_API_TOKEN=...
+node packages/mcp/dist/cli.js                         # nine tools over stdio, live data
+node packages/mcp/dist/export-cli.js --out graph.json # or an OrgGraph export for the check gate
+``` The demo opens on the organization overview and shows sample data from a fictional team; add `?demo=loading`, `?demo=empty` or `?demo=error` to see the other states.

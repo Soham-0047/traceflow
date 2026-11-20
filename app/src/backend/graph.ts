@@ -56,7 +56,8 @@ export function logReport(report: SiteLoadReport, log: (line: string) => void = 
 
 /** Build the OrgGraph for the current site and user. The caller caches it (site-graph.ts). */
 export async function loadOrgGraphFromSite(siteUrl?: string): Promise<OrgGraph> {
-  const { graph, report } = await loadSiteGraph(forgeRequester(), siteUrl ? { siteUrl } : {});
+  // Forge resolvers have a short time limit (UNVERIFIED budget until S1): eight calls in flight.
+  const { graph, report } = await loadSiteGraph(forgeRequester(), { concurrency: 8, ...(siteUrl ? { siteUrl } : {}) });
   logReport(report);
   return graph;
 }

@@ -6,7 +6,7 @@ dist/
 .DS_Store
 .forge/
 coverage/
-# Forge Custom UI build output (app/src/frontend is built by the Forge CLI)
+# Forge Custom UI build output (npm run build -w @traceflow/app; Forge serves it as built)
 app/src/frontend/build/
 # Hallmark render-tier screenshots (local artifacts)
 .hallmark/shots/
@@ -18,3 +18,4 @@ site/.hallmark/
 pages-out/
 # e2e harness scratch (graph exports for the subprocess stages)
 .tmp/
+traceflow-raw/

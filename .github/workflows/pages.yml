@@ -13,8 +13,12 @@ name: Pages (site + demo)
 # The deploy job checks the setting first and fails with these exact steps
 # instead of deploy-pages' cryptic "HttpError: Not Found".
 
+# Publishes only what CI verified: it runs after the CI workflow finishes on
+# main, and only when CI succeeded, checking out the exact commit CI tested.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -29,9 +33,12 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22

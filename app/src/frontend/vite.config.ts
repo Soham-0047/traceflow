@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 // Same pattern as demo/: the Custom UI consumes the engine and shared UI from source.
-// outDir is `build` because the Forge CLI serves that folder for Custom UI resources.
+// outDir is `build`: the manifest's Custom UI resource points at that directory, and
+// Forge serves it as built (it does not build it). `npm run build -w @traceflow/app`.
 const at = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({

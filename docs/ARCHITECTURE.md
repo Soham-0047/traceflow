@@ -7,8 +7,8 @@ How the engine is built, and where each quality — fast, reliable, secure, neve
 ```
                                    TRUST BOUNDARY (validate.ts)
   ┌───────────────┐   ┌──────────────┐   ┌───────────────────────────────┐
-  │ sample data   │   │ OrgGraph     │   │ Forge resolver (Jira/Confluence│
-  │ (fixtures)    │   │ export (file │   │ REST, normalizers)            │
+  │ sample data   │   │ OrgGraph     │   │ live site: site-loader.ts     │
+  │ (fixtures)    │   │ export (file │   │ (Forge asUser | API token)    │
   └───────┬───────┘   │ or env var)  │   └──────────────┬────────────────┘
           │           └───────┬──────┘                  │
           │                   │                         │
@@ -66,6 +66,24 @@ How the engine is built, and where each quality — fast, reliable, secure, neve
 | **Evidence-first** — findings come from records, never a model | every finding carries `evidence[]` + `confidence` + `caveats[]`; the answer layer renders from engine data only | all engine tests, e2e stages 4–5 |
 | **No LLM trust** — AI may explain, never originate | `answerQuery` never calls a model; an LLM may only rephrase an `AnswerResult`, and `checkGrounding` lexically verifies people, record ids and numbers against the answer's facts — any violation falls back to the deterministic text | `grounding.test.ts`, e2e stage 6 |
 | **Honest coverage** — never flag what the data cannot show | coverage flags on every report (`coverage.confluence`, `coverage.code`); caveats rendered next to every score | lineage/overview tests |
+
+## Reading a live site (session 18)
+
+One loader, `loadSiteGraph(requester, options)` in `site-loader.ts`, reads every live site; hosts differ only in the `SiteRequester` they pass:
+
+| Host | Requester | Whose permissions |
+| --- | --- | --- |
+| Forge app (Workbench resolver, every Rovo action) | `app/src/backend/graph.ts`: `asUser().requestJira/requestConfluence` | the viewing user; the KVS cache is keyed per account |
+| `traceflow-export`, the MCP server's live source | `createTokenRequester` in `site-token.ts`: `fetch` + Basic auth (https only, site-relative paths only, token never logged) | the token owner |
+| Tests and e2e stage 13 | recorded payloads | n/a |
+
+The loader builds paths and interprets JSON; transport, auth and retries (`withRetry`: 429/503 with `Retry-After`, capped) belong to the requester. Endpoints follow Atlassian's current APIs: Jira's enhanced search `GET /rest/api/3/search/jql` (the old `/rest/api/3/search` answers 410 Gone; the new one pages with `nextPageToken`, needs explicit `fields` and a bounded JQL, and can repeat a token forever, so the loop stops on a repeated token or a page with no new keys), remote links per issue, `GET /rest/api/3/user/bulk` for names, and the Confluence v2 API for pages (cursor paging) and version history.
+
+**Coverage rules.** A page's contributor set is *exact* when it has one version or its whole history was read; a page with two different known editors can never be a sole-contributor page. The ambiguous case (several versions, one known editor) is resolved from version history, linked and decision pages first within a call budget; an ambiguous page that cannot be resolved is left out with a warning rather than reported as a sole-contributor page it may not be. App accounts are not people. Every cap that cuts a read short lands in the `SiteLoadReport` (`truncated`, `warnings`), which hosts log.
+
+## One tool catalog, two MCP hosts (session 18)
+
+`tools.ts` defines the nine tools once (name, Forge action key, function key, handler, summary ≤ 255 characters, input, `run`). The standalone MCP server registers from it, the Forge app's `backend/tools.ts` exports one action per entry, and `scripts/forge-manifest.mjs` **generates** the manifest's functions, actions, `rovo:mcp` tool list and the agent's action list from it. `npm run forge:check` then runs Atlassian's own validator (`@forge/manifest`) plus cross-checks (handler exports, action references, a built Custom UI that loads nothing external, no external permissions), so a manifest the platform would reject cannot reach `main`.
 
 ## The two pipeline modes
 
@@ -132,7 +150,7 @@ reference, not prose.
 
 `npm run e2e` (`scripts/e2e.mjs`, in CI after build) walks every pipeline stage with real boundaries:
 
-1. fixtures through the strict pipeline; 2. a corrupt export quarantined (best-effort) and refused (strict) with issue paths; 3. shuffled input → byte-identical fingerprint, analysis and answers; 4. the sample story's known facts, now including epic and decision impact; 5. eight answer intents + four honest misses (nonsense, an impact question naming no entity, a scheduling command, an epic-ranking question); 6. grounding accept/reject/fallback over both a person-risk and an epic-impact answer; 7. nine MCP tools over `InMemoryTransport`; 8. the **built MCP CLI as a subprocess** answering a real JSON-RPC handshake and two `tools/call`s over stdio; 9. the **bundled check CLI as a subprocess** returning exit codes 0/1/2 on pass/fail/data-error cases; 10. a synthetic 7,150-record org inside CI-safe performance budgets; 11. the **labeled NLU corpus**: 556 questions answered end to end, efficiency measured (93.9%, 522/556) and gated at the 88% floor, honest refusals 112/112; 12. **per-question latency budgets** on the same 7k org — a ten-question battery cold and warm, with the warm pass required to beat cold (the caches must engage) and byte-identical repeat answers (measured locally: ~56 ms cold, ~25 ms warm per ten-question battery, cache effect engaged).
+1. fixtures through the strict pipeline; 2. a corrupt export quarantined (best-effort) and refused (strict) with issue paths; 3. shuffled input → byte-identical fingerprint, analysis and answers; 4. the sample story's known facts, now including epic and decision impact; 5. eight answer intents + four honest misses (nonsense, an impact question naming no entity, a scheduling command, an epic-ranking question); 6. grounding accept/reject/fallback over both a person-risk and an epic-impact answer; 7. nine MCP tools over `InMemoryTransport`; 8. the **built MCP CLI as a subprocess** answering a real JSON-RPC handshake and two `tools/call`s over stdio; 9. the **bundled check CLI as a subprocess** returning exit codes 0/1/2 on pass/fail/data-error cases; 10. a synthetic 7,150-record org inside CI-safe performance budgets; 11. the **labeled NLU corpus**: 556 questions answered end to end, efficiency measured (93.9%, 522/556) and gated at the 88% floor, honest refusals 112/112; 12. **per-question latency budgets** on the same 7k org — a ten-question battery cold and warm, with the warm pass required to beat cold (the caches must engage) and byte-identical repeat answers (measured locally: ~56 ms cold, ~25 ms warm per ten-question battery, cache effect engaged); 13. a **recorded Atlassian site** through the shared loader and the API-token requester, written by `traceflow-export` (strict), then served by the MCP CLI over stdio — asserting the removed search endpoint and the Confluence v1 content API are never called, the token never reaches output, a `viewpage.action` link resolves, a `Decision:` page becomes a linked decision, and a sole-contributor finding comes from a version history that was actually read.
 
 ## Package map
 
@@ -141,6 +159,6 @@ reference, not prose.
 | `packages/core` | Everything above the trust boundary and below the surfaces. Pure TypeScript, one runtime dependency (`compromise`, the session-14 POS-gate lexicon — MIT, offline, no models), browser-safe (no Node APIs) — the demo imports it from source. |
 | `packages/ui` | The Workbench (five views) on the same reports. |
 | `demo` | Thin host on sample fixtures. |
-| `packages/mcp` | Nine `traceflow_*` tools over any validated `GraphSource`; stdio CLI with export parsing. |
+| `packages/mcp` | Nine `traceflow_*` tools (from the shared catalog) over any validated `GraphSource`; stdio CLI with export parsing or a live site; `traceflow-export`. |
 | `packages/check` | The PR provenance gate; CLI parses exports through the same strict pipeline. |
-| `app` | Forge scaffold; the resolver and the Rovo agent action sanitize the site-built graph through best-effort before caching, and answer through the same answer layer. |
+| `app` | The Forge app: generated, validator-checked manifest; the resolver and nine Rovo actions (also `rovo:mcp` tools) read the site as the user through the shared loader, sanitize through best-effort, cache per account, and answer through the same engine. |

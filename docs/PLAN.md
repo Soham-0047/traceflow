@@ -2,7 +2,7 @@
 
 > Status: v1 · written 2026-11-01 · owner: Soham-0047
 > The product catalog is in [`/PRODUCTS.md`](../PRODUCTS.md). Living status, decisions made since, and next actions are in [`docs/PROGRESS.md`](PROGRESS.md). This plan covers the hackathon product (TF-01 to TF-05, TF-08); the tech stack is open for other products (PROGRESS D13). Design rules are in [`/DESIGN.md`](../DESIGN.md). Agents start at [`/AGENTS.md`](../AGENTS.md).
-> Target: Atlassian **Codegeist 2026** (deadline **Dec 23, 2026** per the project docs; the 2025 cutoff was 10:00 AM PT, so confirm the exact 2026 time on Devpost and aim to submit by **Dec 21**).
+> Target: Atlassian **Codegeist 2026**: deadline **Dec 22, 2026 at 12:00 PM PT** (Atlassian Developer Community announcement, 2026-10-28; earlier docs said Dec 23). Tracks: Software teams, Business teams, Specialized industries. Bonus awards ($1,500 each): Best Rovo Agent, Best MCP App, Best Teamwork Graph Integration, Best Marketplace Published App. Submit by **Dec 21**.
 
 ## 1. Positioning
 
@@ -153,7 +153,7 @@ First engine (already in `packages/core`): `assessPersonRisk(graph, personId)` w
 - [ ] Registered on Devpost; solo/team decided
 - [ ] Public repo (or shared with the addresses Devpost lists)
 - [ ] Forge **App ID** from the Developer Console
-- [ ] Category chosen (Apps for Software Teams) + bonus categories declared: Best Agents (Rovo), Best Teamwork Graph integration, Best Marketplace app (listing link or review ticket); `rovo:mcp` only if time allows
+- [ ] Track chosen (Software teams) + bonus awards declared: **Best Rovo Agent** (`traceflow-analyst`), **Best MCP App** (`rovo:mcp` exposes all nine tools; built in session 18), Best Teamwork Graph Integration (only if S2 lands), Best Marketplace Published App (listing link or review ticket)
 - [ ] ~5-minute demo video (storyline: "Your most knowledgeable employee just left. What did they take with them?")
 - [ ] README with install steps, wording rules honoured
 - [ ] Netlify demo URL (optional but recommended)
@@ -172,4 +172,6 @@ First engine (already in `packages/core`): `assessPersonRisk(graph, personId)` w
 - Forge CI/CD: https://developer.atlassian.com/platform/forge/set-up-cicd
 - Teamwork Graph scopes (Preview, read-only): https://developer.atlassian.com/platform/teamwork-graph/scopes/
 - Teamwork Graph curated queries: https://developer.atlassian.com/platform/teamwork-graph/curated-queries/
+- Codegeist 2026 announcement (deadline, tracks, bonus awards): https://community.developer.atlassian.com/t/heads-up-developers-codegeist-2026-is-officially-open/103506
+- Forge `rovo:mcp` module: https://developer.atlassian.com/platform/forge/manifest-reference/modules/rovo-mcp/
 - Codegeist 2025 winners and bonus categories (for reference): https://www.atlassian.com/blog/developer/meet-the-winners-of-codegeist-2025-atlassian-williams-racing-edition/amp

@@ -36,6 +36,34 @@ Point it at a real `OrgGraph` export (see `@traceflow/core` types) with:
 TRACEFLOW_GRAPH=./graph.json node packages/mcp/dist/cli.js
 ```
 
+Or serve a live Atlassian Cloud site directly (read with the token owner's permissions,
+refreshed every five minutes):
+
+```bash
+export ATLASSIAN_SITE_URL=https://your-site.atlassian.net
+export ATLASSIAN_EMAIL=you@example.com
+export ATLASSIAN_API_TOKEN=...   # https://id.atlassian.com/manage-profile/security/api-tokens
+node packages/mcp/dist/cli.js
+```
+
+## Export a live site: `traceflow-export`
+
+The same three variables let `traceflow-export` write an `OrgGraph` export, which is what
+`TRACEFLOW_GRAPH` and the check gate (`traceflow-check --graph`) read. The export passes
+the strict validation pipeline before it is written.
+
+```bash
+node packages/mcp/dist/export-cli.js --out graph.json
+node packages/mcp/dist/export-cli.js --out graph.json --raw traceflow-raw   # spike S1
+node packages/mcp/dist/export-cli.js --jql "project = PAY AND updated >= -90d" --max-issues 200
+```
+
+`--raw DIR` writes every raw REST response next to its path, so spike S1 can diff the real
+payloads against the shapes the loader was written from. Raw responses contain your site's
+data (`traceflow-raw/` is git-ignored): never commit them. The reads use Jira's enhanced
+search (`/rest/api/3/search/jql`), the Confluence v2 API and Jira's user bulk lookup; the
+shared loader is `packages/core/src/site-loader.ts`.
+
 ## Register with an MCP client
 
 Claude Desktop (`claude_desktop_config.json`):
@@ -52,8 +80,10 @@ Claude Desktop (`claude_desktop_config.json`):
 }
 ```
 
-Inside the Forge app the same tools are exposed through `rovo:mcp` (TF-04); the engine,
-the tool descriptions and the evidence rules are identical by construction.
+Inside the Forge app the same nine tools are Rovo actions, and the `rovo:mcp` module exposes
+them on Atlassian's MCP infrastructure (`app/manifest.yml`). Both hosts register from one
+catalog (`packages/core/src/tools.ts`), so names, descriptions, inputs and results are
+identical by construction.
 
 ## Develop
 

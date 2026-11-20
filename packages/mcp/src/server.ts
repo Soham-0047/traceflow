@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { TRACEFLOW_TOOLS, runTool, runPipeline, sampleGraph } from '@traceflow/core';
-import type { DataAdapter, OrgGraph } from '@traceflow/core';
+import { TRACEFLOW_TOOLS, createTokenRequester, loadSiteGraph, runTool, runPipeline, sampleGraph } from '@traceflow/core';
+import type { DataAdapter, OrgGraph, TokenSiteOptions } from '@traceflow/core';
 
 /**
  * The MCP surface of TraceFlow: the same engine and the same DataAdapter contract
@@ -19,39 +19,99 @@ import type { DataAdapter, OrgGraph } from '@traceflow/core';
  */
 
 /** Any DataAdapter can feed the server: the sample fixtures, a graph export, a Forge resolver. */
-export type GraphSource = Pick<DataAdapter, 'name' | 'loadGraph'>;
+export type GraphSource = Pick<DataAdapter, 'name' | 'loadGraph'> & {
+  /** True when loadGraph may return a newer graph over time (a live site); it is then asked on every call. */
+  refreshes?: boolean;
+};
 
 /**
  * Wrap any graph source in the validation pipeline (best-effort): broken records
  * are quarantined, dangling references dropped, and every warning is logged once
  * to stderr (the log channel for stdio MCP). A hostile or partially-broken source
  * can serve degraded-but-honest data instead of crashing every tool call.
+ *
+ * A static source (the fixtures, an export, an adapter) is loaded and
+ * validated once. A refreshing source (`refreshes: true`, a live site) is
+ * asked on every call and re-validated exactly when it returns a new graph
+ * object. A failed load is never cached; the next call retries the source.
  */
 export function validatedSource(source: GraphSource, log: (line: string) => void = console.error): GraphSource {
+  const sanitize = (raw: OrgGraph): OrgGraph => {
+    const result = runPipeline(raw, { mode: 'best-effort', context: `source '${source.name}'` });
+    for (const warning of result.warnings) {
+      log(`traceflow-mcp: warning: ${warning.path}: ${warning.message}`);
+    }
+    for (const rejected of result.rejected) {
+      log(`traceflow-mcp: quarantined ${rejected.path}: ${rejected.reason}`);
+    }
+    return result.graph;
+  };
+
+  if (source.refreshes) {
+    const sanitized = new WeakMap<OrgGraph, OrgGraph>();
+    return {
+      name: source.name,
+      refreshes: true,
+      loadGraph: async () => {
+        const raw = await source.loadGraph();
+        let graph = sanitized.get(raw);
+        if (!graph) {
+          graph = sanitize(raw);
+          sanitized.set(raw, graph);
+        }
+        return graph;
+      },
+    };
+  }
+
   let cached: Promise<OrgGraph> | undefined;
   return {
     name: source.name,
     loadGraph: async () => {
       if (!cached) {
-        cached = (async () => {
-          const result = runPipeline(await source.loadGraph(), {
-            mode: 'best-effort',
-            context: `source '${source.name}'`,
-          });
-          for (const warning of result.warnings) {
-            log(`traceflow-mcp: warning: ${warning.path}: ${warning.message}`);
-          }
-          for (const rejected of result.rejected) {
-            log(`traceflow-mcp: quarantined ${rejected.path}: ${rejected.reason}`);
-          }
-          return result.graph;
-        })();
+        cached = (async () => sanitize(await source.loadGraph()))();
         cached.catch(() => {
           // Do not cache a failed load; the next call retries the source.
           cached = undefined;
         });
       }
       return cached;
+    },
+  };
+}
+
+/**
+ * A live Atlassian site read through the shared loader with an API token
+ * (ATLASSIAN_SITE_URL / ATLASSIAN_EMAIL / ATLASSIAN_API_TOKEN). The graph is
+ * re-read after `ttlSeconds` so a long-running server does not serve a stale
+ * site forever; a failed read is not cached (the next call retries).
+ */
+export function liveSiteSource(
+  options: TokenSiteOptions & { ttlSeconds?: number; log?: (line: string) => void },
+): GraphSource {
+  const requester = createTokenRequester(options);
+  const ttlMs = (options.ttlSeconds ?? 300) * 1000;
+  const log = options.log ?? console.error;
+  let cache: { at: number; graph: Promise<OrgGraph> } | undefined;
+  return {
+    name: `site:${new URL(options.siteUrl).host}`,
+    refreshes: true,
+    loadGraph: async () => {
+      if (!cache || Date.now() - cache.at > ttlMs) {
+        const graph = loadSiteGraph(requester, { siteUrl: options.siteUrl }).then(({ graph, report }) => {
+          log(
+            `traceflow-mcp: read ${report.issues} issues, ${report.pages} pages, ${report.people} people from ${options.siteUrl}`,
+          );
+          for (const line of [...report.truncated, ...report.warnings]) log(`traceflow-mcp: ${line}`);
+          return graph;
+        });
+        const entry = { at: Date.now(), graph };
+        cache = entry;
+        graph.catch(() => {
+          if (cache === entry) cache = undefined;
+        });
+      }
+      return cache.graph;
     },
   };
 }

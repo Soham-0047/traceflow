@@ -15,6 +15,9 @@
  * 10. performance     a synthetic 7k-record org inside CI-safe budgets
  * 11. efficiency      the labeled NLU corpus: measured understanding, gated >= 88%
  * 12. query latency   per-question budgets on the 7k org: cold, warm, cache effect
+ * 13. live site       a recorded Atlassian site through the shared loader and the
+ *                     API-token requester -> traceflow-export (strict) -> the MCP
+ *                     CLI over stdio answering on the exported records
  *
  * Run after `npm run build` (the harness loads the built dists, not the
  * TypeScript sources): `npm run e2e`.
@@ -43,6 +46,7 @@ import {
   ValidationError,
 } from '@traceflow/core';
 import { createTraceflowServer } from '@traceflow/mcp';
+import { runExport } from '../packages/mcp/dist/export.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
@@ -586,6 +590,121 @@ stages.push(stage('12. query latency: per-question budgets on the 7k org', async
 }));
 
 /* ------------------------------------------------------------------ */
+
+/**
+ * A recorded Atlassian Cloud site for stage 13: the documented payload shapes
+ * of every endpoint the loader calls (spike S1 swaps in real recordings).
+ */
+function recordedSiteFetch() {
+  const paths = [];
+  const json = (status, body) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: String(status),
+    headers: { get: () => null },
+    json: async () => body,
+  });
+  const issue = (key, summary, type, level, assignee, name, parent, done = false) => ({
+    key,
+    fields: {
+      summary,
+      status: { statusCategory: { key: done ? 'done' : 'indeterminate' } },
+      issuetype: { name: type, hierarchyLevel: level },
+      assignee: { accountId: assignee, displayName: name, accountType: 'atlassian' },
+      ...(parent ? { parent: { key: parent, fields: { issuetype: { name: 'Epic', hierarchyLevel: 1 } } } } : {}),
+    },
+  });
+  const page = (id, title, author, versions, lastEditor = author) => ({
+    id,
+    title,
+    status: 'current',
+    authorId: author,
+    version: { number: versions, authorId: lastEditor },
+    _links: { webui: `/spaces/ENG/pages/${id}/x` },
+  });
+  const fake = async (url) => {
+    const path = url.replace('https://e2e.atlassian.net', '');
+    paths.push(path);
+    if (path.startsWith('/rest/api/3/search/jql')) {
+      const token = new URL(path, 'https://x').searchParams.get('nextPageToken');
+      return token === 'p2'
+        ? json(200, { issues: [issue('ONB-2', 'Interactive checklist', 'Story', 0, 'acc-priya', 'Priya Nair', 'ONB-1')], isLast: true })
+        : json(200, {
+            issues: [
+              issue('PAY-1', 'Payments reliability', 'Epic', 1, 'acc-sam', 'Sam Chen'),
+              issue('PAY-2', 'Add idempotency keys', 'Story', 0, 'acc-priya', 'Priya Nair', 'PAY-1'),
+              issue('PAY-3', 'Retry backoff', 'Task', 0, 'acc-priya', 'Priya Nair', 'PAY-1', true),
+              issue('ONB-1', 'Onboarding revamp', 'Epic', 1, 'acc-priya', 'Priya Nair'),
+            ],
+            nextPageToken: 'p2',
+          });
+    }
+    if (path.startsWith('/rest/api/3/issue/PAY-1/remotelink')) {
+      return json(200, [{ globalId: 'appId=x&pageId=100', object: { url: 'https://e2e.atlassian.net/wiki/pages/viewpage.action?pageId=100' } }]);
+    }
+    if (path.startsWith('/rest/api/3/issue/PAY-2/remotelink')) {
+      return json(200, [{ object: { url: 'https://e2e.atlassian.net/wiki/spaces/ENG/pages/300/Decision' } }]);
+    }
+    if (path.startsWith('/rest/api/3/issue/')) return json(200, []);
+    if (path.startsWith('/rest/api/3/user/bulk')) {
+      const ids = new URL(path, 'https://x').searchParams.getAll('accountId');
+      return json(200, { values: ids.map((id) => ({ accountId: id, displayName: id === 'acc-dana' ? 'Dana Park' : id, accountType: 'atlassian' })) });
+    }
+    if (path.startsWith('/wiki/api/v2/pages/100/versions')) {
+      return json(200, { results: [{ number: 1, authorId: 'acc-priya' }, { number: 2, authorId: 'acc-priya' }, { number: 3, authorId: 'acc-priya' }] });
+    }
+    if (path.startsWith('/wiki/api/v2/pages?')) {
+      return json(200, {
+        results: [
+          page('100', 'Payments retry design', 'acc-priya', 3),
+          page('300', 'Decision: idempotency key scope', 'acc-priya', 2, 'acc-dana'),
+          page('400', 'Onboarding guide', 'acc-dana', 1),
+        ],
+        _links: { base: 'https://e2e.atlassian.net/wiki' },
+      });
+    }
+    return json(404, {});
+  };
+  return { fake, paths };
+}
+
+stages.push(stage('13. live site: recorded site -> loader -> traceflow-export -> MCP over stdio', async () => {
+  const { fake, paths } = recordedSiteFetch();
+  const exportPath = join(tmpDir, 'site-export.json');
+  const stderr = [];
+  const code = await runExport(['--out', exportPath], {
+    ATLASSIAN_SITE_URL: 'https://e2e.atlassian.net',
+    ATLASSIAN_EMAIL: 'e2e@example.com',
+    ATLASSIAN_API_TOKEN: 'e2e-token',
+  }, {
+    stdout: () => {},
+    stderr: (t) => stderr.push(t),
+    writeFile: (p, t) => writeFileSync(p, t),
+    mkdir: (p) => mkdirSync(p, { recursive: true }),
+    fetch: fake,
+  });
+  assert(code === 0, `traceflow-export must exit 0, got ${code}: ${stderr.join('')}`);
+  assert(!paths.some((p) => /^\/rest\/api\/[23]\/search(\?|$)/.test(p)), 'the removed /rest/api/3/search endpoint must never be called');
+  assert(!paths.some((p) => p.startsWith('/wiki/rest/api/content')), 'Confluence pages must come from the v2 API');
+  assert(!stderr.join('').includes('e2e-token'), 'the API token must never reach the output');
+
+  const { graph } = runPipelineOnJson((await import('node:fs')).readFileSync(exportPath, 'utf8'));
+  assert(graph.workItems.length === 5, `expected 5 issues across two search pages, got ${graph.workItems.length}`);
+  const pay1 = graph.workItems.find((w) => w.ref.id === 'PAY-1');
+  assert(pay1?.linkedPageIds?.[0] === '100', 'a viewpage.action remote link must link PAY-1 to page 100');
+  assert(graph.decisions.length === 1 && graph.decisions[0].linkedWorkItemIds?.[0] === 'PAY-2', 'the Decision: page must become a decision linked to PAY-2');
+  assert(graph.people.find((p) => p.id === 'acc-dana')?.name === 'Dana Park', 'contributor names come from the user bulk lookup');
+
+  const { answers } = await mcpStdioCall(mcpCli, { TRACEFLOW_GRAPH: exportPath }, [
+    ['tools/call', { name: 'traceflow_person_risk', arguments: { person: 'priya' } }],
+    ['tools/call', { name: 'traceflow_query', arguments: { question: 'What breaks if Priya Nair leaves?' } }],
+  ]);
+  const risk = JSON.parse(answers.get('tools/call:traceflow_person_risk').content[0].text);
+  assert(risk.personName === 'Priya Nair' && risk.findings.some((f) => f.kind === 'sole-contributor-page'), 'Priya is the sole recorded editor of page 100 (history read: 3 versions, one editor)');
+  const impact = JSON.parse(answers.get('tools/call:traceflow_query').content[0].text);
+  assert(impact.understood && impact.intent === 'person-impact', `the site export must answer impact questions, got ${impact.intent}`);
+  return `${graph.workItems.length} issues, ${graph.pages.length} pages, ${graph.decisions.length} decision from ${paths.length} recorded calls; answered over stdio`;
+}));
 
 async function main() {
   // Prepare the exports the subprocess stages read.

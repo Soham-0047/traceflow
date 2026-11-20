@@ -25,19 +25,19 @@ The platform is one shared engine, a few surfaces that show it, and some satelli
 
 | Tier | Meaning | Rule |
 | --- | --- | --- |
-| **T1** | Ships for Codegeist 2026. Submit by **Dec 21**, deadline Dec 23. | Everything else waits for these. |
+| **T1** | Ships for Codegeist 2026. Submit by **Dec 21**; the deadline is **Dec 22, 2026, 12:00 PM PT** (Atlassian's announcement). | Everything else waits for these. |
 | **T2** | Reinforces the submission or unlocks a bonus prize. | Start only if it helps T1, or Soham asks. |
 | **T3** | Roadmap after the hackathon. Briefs only. | No code before Dec 21 unless Soham asks. |
 
 | ID | Product | Tier | Status | Stack | Lives in |
 | --- | --- | --- | --- | --- | --- |
-| TF-01 | TraceFlow for Atlassian (Forge app) | T1 | Scaffolded and unit-tested; UNVERIFIED until deployed (needs `forge register`) | Forge, Custom UI (React, TS) | `app/` |
+| TF-01 | TraceFlow for Atlassian (Forge app) | T1 | Validator-clean manifest (generated, checked in CI), reads as the user on current Jira/Confluence APIs, unit-tested; UNVERIFIED until deployed (needs `forge register`) | Forge, Custom UI (React, TS) | `app/` |
 | TF-02 | TraceFlow Engine | T1 | v1.3: epic and decision impact added, 8 answer intents, 112 tests | TypeScript, no runtime deps | `packages/core` |
 | TF-03 | TraceFlow Workbench (shared UI and public demo) | T1 | Five views including Impact; reviewed in a real browser; render-tier lint clean; keyboard pass and axe-core a11y gate (15 checks) in CI; manual screen-reader pass owed | React 18, TS, Vite | `packages/ui`, `demo/` |
-| TF-04 | TraceFlow Agent (Rovo agent, actions, optional MCP tools) | T1 | Agent action + manifest wired onto the deterministic answer layer; unit-tested with mocks; UNVERIFIED in the Rovo runtime until S3 | Forge `rovo:agent` + `action` modules | `app/` |
+| TF-04 | TraceFlow Agent (Rovo agent, actions, optional MCP tools) | T1 | Nine read-only actions from the shared tool catalog, the agent and a `rovo:mcp` module (session 18); manifest accepted by Atlassian's validator in CI; unit-tested with mocks; UNVERIFIED in the Rovo runtime until S3 | Forge `rovo:agent` + `action` + `rovo:mcp` modules | `app/` |
 | TF-05 | TraceFlow Seeder (demo data and video kit) | T1 | Planner written and unit-tested; REST apply UNVERIFIED until a real run | Node, TS, Atlassian REST | `tools/seeder` |
 | TF-08 | TraceFlow Site and docs | T1 | Built, lint clean on both tiers, a11y gate in CI; public URL waits on the one-time Pages source flip | Static site | `site/` |
-| TF-06 | TraceFlow MCP (standalone server for any AI agent) | T2 | Built on the official MCP SDK: nine tools over the DataAdapter contract, 15 protocol-level tests, stdio CLI verified; real-site adapter and rovo:mcp pending | TS, MCP SDK | `packages/mcp` |
+| TF-06 | TraceFlow MCP (standalone server for any AI agent) | T2 | Built on the official MCP SDK: nine tools from the shared catalog over the DataAdapter contract, protocol-level tests, stdio CLI verified; live-site source and `traceflow-export` (session 18); the same tools ship inside the Forge app through `rovo:mcp` | TS, MCP SDK | `packages/mcp` |
 | TF-07 | TraceFlow Check (provenance gate for pull requests) | T2 | CLI + composite GitHub Action built and tested (9 tests, bundle verified end-to-end); real-site mode pending | Node CLI, GitHub Action, Bitbucket Pipe | `packages/check` |
 | TF-09 | TraceFlow Cloud (standalone web app) | T3 | Not started | TS full stack | `apps/cloud` |
 | TF-10 | TraceFlow Connectors (more sources) | T3 | Not started | TS packages | `packages/connectors/*` |
@@ -48,11 +48,11 @@ The platform is one shared engine, a few surfaces that show it, and some satelli
 
 | Prize | Carried by | What must be true |
 | --- | --- | --- |
-| Apps for Software Teams (main category) | TF-01, TF-03 | Installable Forge app solving a real engineering-team problem |
-| Best Agents (Rovo and assignable agents) | TF-04 | App ships a `rovo:agent` or reusable `rovo:skill` and `rovo:action` modules |
-| Best app with MCP | TF-04 | Forge app exposes tools through `rovo:mcp` (TF-06 is separate and does not count by itself) |
-| Best Teamwork Graph integration | TF-01 with TF-02's adapter | App consumes the Teamwork Graph API (spike S2, may need allowlisting) |
-| Best Marketplace published app | TF-01 | Listing link or review ticket in the Devpost entry |
+| Software teams (track; Codegeist 2026 names Software teams, Business teams, Specialized industries) | TF-01, TF-03 | Installable Forge app solving a real engineering-team problem |
+| Best Rovo Agent ($1,500) | TF-04 | App ships a `rovo:agent` with `action` modules (built: `traceflow-analyst` + nine actions) |
+| Best MCP App ($1,500) | TF-04 | Forge app exposes tools through `rovo:mcp` (built in session 18: all nine tools; TF-06 alone does not count) |
+| Best Teamwork Graph Integration ($1,500) | TF-01 with TF-02's adapter | App consumes the Teamwork Graph API (spike S2, may need allowlisting) |
+| Best Marketplace Published App ($1,500) | TF-01 | Listing link or review ticket in the Devpost entry |
 
 ## Shared contracts (do not break these casually)
 

@@ -1,27 +1,38 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { runPipelineOnJson } from '@traceflow/core';
-import { createTraceflowServer, SAMPLE_SOURCE } from './server.js';
+import { runPipelineOnJson, tokenSiteFromEnv } from '@traceflow/core';
+import { createTraceflowServer, liveSiteSource, SAMPLE_SOURCE } from './server.js';
 import type { GraphSource } from './server.js';
 
 /**
  * The standalone TraceFlow MCP server (stdio).
  *
  * Graph source, in order of preference:
- *  1. TRACEFLOW_GRAPH=/path/to/graph.json — an OrgGraph export (see @traceflow/core
- *     types). The file is parsed through the validation pipeline: a corrupt
- *     export fails fast with every issue listed, instead of serving a broken
- *     graph to every tool call.
- *  2. the sample fixtures, so the server is useful out of the box for evaluation.
+ *  1. TRACEFLOW_GRAPH=/path/to/graph.json — an OrgGraph export (from
+ *     `traceflow-export` or any producer). The file is parsed through the
+ *     validation pipeline: a corrupt export fails fast with every issue listed,
+ *     instead of serving a broken graph to every tool call.
+ *  2. ATLASSIAN_SITE_URL + ATLASSIAN_EMAIL + ATLASSIAN_API_TOKEN — a live
+ *     Atlassian Cloud site, read through the shared loader with the token
+ *     owner's permissions and refreshed every five minutes.
+ *  3. the sample fixtures, so the server is useful out of the box for evaluation.
  *
- * A Forge-hosted source (rovo:mcp) replaces this file inside the Atlassian app;
- * the tools and the engine stay identical.
+ * Inside Forge, the same tools are served as Rovo actions and rovo:mcp tools
+ * (app/src/backend/tools.ts); the catalog and the engine are identical.
  */
 
 function sourceFromEnv(): GraphSource {
   const path = process.env.TRACEFLOW_GRAPH;
-  if (!path) return SAMPLE_SOURCE;
+  if (!path) {
+    try {
+      const site = tokenSiteFromEnv(process.env);
+      return site ? liveSiteSource(site) : SAMPLE_SOURCE;
+    } catch (err) {
+      console.error(`traceflow-mcp: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  }
 
   let text: string;
   try {

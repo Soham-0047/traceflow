@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": { "traceflow-mcp": "dist/cli.js" },
+  "bin": {
+    "traceflow-mcp": "dist/cli.js",
+    "traceflow-export": "dist/export-cli.js"
+  },
   "main": "dist/server.js",
   "types": "dist/server.d.ts",
   "scripts": {

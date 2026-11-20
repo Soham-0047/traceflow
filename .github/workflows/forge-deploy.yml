@@ -1,8 +1,14 @@
 name: Forge deploy (manual)
 
-# Manual only. Skips itself until app/manifest.yml exists.
+# Manual only. Refuses to run until the app is registered (app.id in
+# app/manifest.yml is still the placeholder written by the repo).
 # Requires repository secrets: FORGE_EMAIL and FORGE_API_TOKEN (Atlassian API token).
-# Untested until the Forge app is registered.
+# UNVERIFIED until the Forge app is registered and this runs once.
+#
+# Forge does not build the Custom UI or the workspace packages: this workflow
+# builds the engine (the backend bundles @traceflow/core from its dist) and the
+# Custom UI (the manifest's resource is the built directory), checks the
+# manifest with Atlassian's validator, then deploys.
 
 on:
   workflow_dispatch:
@@ -25,16 +31,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check that the Forge app exists and is registered
+      - name: Check that the Forge app is registered
         id: check
         run: |
-          if [ ! -f app/manifest.yml ]; then
+          if grep -q "REPLACE_AFTER_FORGE_REGISTER" app/manifest.yml; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "No app/manifest.yml yet - nothing to deploy."
-          elif grep -q "REPLACE_AFTER_FORGE_REGISTER" app/manifest.yml; then
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "app/manifest.yml still has the placeholder app id."
-            echo "Run 'forge register' and put the real app id in app/manifest.yml first (see app/README.md)."
+            echo "::warning::app/manifest.yml still has the placeholder app id. Run 'forge register' in app/ and commit the id first (see app/README.md)."
           else
             echo "exists=true" >> "$GITHUB_OUTPUT"
           fi
@@ -45,11 +47,16 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies and Forge CLI
+      - name: Install, build the engine and the Custom UI, check the manifest
         if: steps.check.outputs.exists == 'true'
         run: |
           npm ci
-          npm install -g @forge/cli
+          npm run forge:build
+          npm run forge:check
+
+      - name: Install the Forge CLI
+        if: steps.check.outputs.exists == 'true'
+        run: npm install -g @forge/cli@15
 
       - name: Deploy
         if: steps.check.outputs.exists == 'true'

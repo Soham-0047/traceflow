@@ -6,21 +6,22 @@ Everything below that touches Atlassian is **unverified**: it was written from d
 
 ## Setup (once, by Soham)
 1. Provision a free development site: https://developer.atlassian.com/platform/forge/provision-a-demo-development-site/ (Atlassian Cloud Developer License gives Jira and Confluence).
-2. Install the Forge CLI, `forge login`, then `forge create` and pick a Custom UI template for Jira. Copy it into `app/` and keep the `app.id` line of `manifest.yml`.
+2. Install the Forge CLI, `forge login`, then run `forge register` inside `app/` (it writes the real `app.id`; `npm run forge:manifest` keeps it). Do not `forge create` a new app: `app/` is complete.
 3. Add `FORGE_EMAIL` and `FORGE_API_TOKEN` as GitHub Actions secrets, then run the **Forge deploy (manual)** workflow.
 4. Docs that help agents: Forge AI development toolkit (Forge MCP Server, Forge skills) https://developer.atlassian.com/platform/forge/ai-development-toolkit/
 
 ## S1: Jira and Confluence in one app (the gate)
-**Question:** can one Forge app read Jira issues and Confluence pages and link them?
-**How:** follow https://developer.atlassian.com/platform/forge/build-an-app-compatible-with-confluence-and-jira/ and add scopes per https://developer.atlassian.com/platform/forge/add-scopes-to-call-an-atlassian-rest-api/. In a resolver, fetch a few issues, one issue's remote links, and a page's versions (for contributors), then pass them to `buildOrgGraph` from `@traceflow/core`.
-```ts
-// starting point, unverified
-import api, { route } from '@forge/api';
-const issues = await (await api.asUser().requestJira(route`/rest/api/3/search?jql=${jql}&fields=summary,status,assignee,issuetype,parent`)).json();
-const links = await (await api.asUser().requestJira(route`/rest/api/3/issue/${key}/remotelink`)).json();
-const versions = await (await api.asUser().requestConfluence(route`/wiki/api/v2/pages/${pageId}/versions`)).json();
-```
-**Exit:** a resolver returns an epic with at least one linked Confluence page and its child issues, built through `buildOrgGraph`. If the real payloads differ from `normalize.ts`, fix the normalizers and their tests.
+**Question:** do the real payloads match the shapes the shared loader (`packages/core/src/site-loader.ts`) was written from, and does the Forge app read both products as the user?
+**How (session 18: two commands, no code to write):**
+1. *Payloads, before any deploy.* With an API token for the dev site, from the repo root:
+   ```bash
+   npm ci && npm run build
+   ATLASSIAN_SITE_URL=https://<site>.atlassian.net ATLASSIAN_EMAIL=you@example.com ATLASSIAN_API_TOKEN=... \
+     node packages/mcp/dist/export-cli.js --out graph.json --raw traceflow-raw
+   ```
+   `traceflow-raw/` gets every raw response (Jira enhanced search `/rest/api/3/search/jql`, remote links, user bulk, Confluence v2 pages and versions) next to its path; stderr gets the read report (counts, caps hit, warnings). Diff the raw bodies against the raw-shape interfaces at the top of `site-loader.ts` and `normalize.ts`. Do not commit the raw folder (it is git-ignored; it holds site data).
+2. *Forge, after `forge register` + deploy.* Open Jira → Apps → TraceFlow and compare with `graph.json`: same issues, pages and links (the app reads as you, the export reads as the token owner; same person = same graph). `forge logs` shows the loader's read report.
+**Exit:** an epic with at least one linked Confluence page and its child issues appears in both, the read report has no unexpected warnings, and a sole-contributor finding points at a page whose history was read. If a shape differs, fix the loader or normalizer **and record the payload in a test** (`packages/core/test/site-loader.test.ts`).
 **If it fails:** re-scope to whichever product works. Nothing else proceeds until this passes.
 
 ## S2: Teamwork Graph

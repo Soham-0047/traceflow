@@ -299,12 +299,14 @@ export async function loadSiteGraph(requester: SiteRequester, options: SiteLoadO
   const issues = await searchIssues(jira, options.jql ?? DEFAULT_JQL, limits.maxIssues, report);
   await addMissingEpics(jira, issues, report);
 
-  // 2. Confluence pages (degrades: no Confluence, no scope, no pages).
-  const listed = await listPages(confluence, limits.maxPages, report);
+  // 2 + 3, in parallel (they are independent, and Forge resolvers have a short
+  // time limit): Confluence pages (degrades: no Confluence, no scope, no pages)
+  // and the per-issue remote links (degrade per issue).
+  const [listed, remoteLinks] = await Promise.all([
+    listPages(confluence, limits.maxPages, report),
+    readRemoteLinks(jira, issues, limits.maxRemoteLinkCalls, concurrency, report),
+  ]);
   const siteUrl = options.siteUrl ?? listed.siteUrl;
-
-  // 3. Remote links (degrades per issue).
-  const remoteLinks = await readRemoteLinks(jira, issues, limits.maxRemoteLinkCalls, concurrency, report);
 
   // 4. Contributors from version history where the page record cannot settle it.
   const linkedPageIds = new Set<string>();

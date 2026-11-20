@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
+import { parse } from 'yaml';
 
 // The default export under test wires itself to the site-graph loader; mock it
 // so the handler can be exercised end to end without Forge (UNVERIFIED in the
@@ -88,6 +89,21 @@ describe('createInvestigateAction (the Rovo agent action)', () => {
     expect(logError).toHaveBeenCalledTimes(1);
   });
 
+  it('passes the invoking user to the loader so reads run with their permissions', async () => {
+    const seen: (string | undefined)[] = [];
+    const action = createInvestigateAction({
+      loadGraph: async (_siteUrl, accountId) => {
+        seen.push(accountId);
+        return sampleGraph;
+      },
+    });
+    await action({ question: 'Overview?' }, { principal: { accountId: 'acc-1' } });
+    await action({ question: 'Overview?' }, { accountId: 'acc-2' });
+    await action({ question: 'Overview?', context: { accountId: 'acc-3' } });
+    await action({ question: 'Overview?' });
+    expect(seen).toEqual(['acc-1', 'acc-2', 'acc-3', undefined]);
+  });
+
   it('derives the site url from the Jira or Confluence view context for record links', async () => {
     const dep = loader();
     const action = createInvestigateAction({ loadGraph: dep.loadGraph });
@@ -127,27 +143,18 @@ describe('the default export and manifest wiring (UNVERIFIED until deploy)', () 
   });
 
   it('keeps the manifest keys, handler path, action and agent entries consistent', () => {
-    const manifest = readFileSync(join(here, '..', 'manifest.yml'), 'utf8');
-    const lines = manifest.split('\n').map((l) => l.trim().replace(/^- /, ''));
-    // Function + handler the action points at.
-    expect(lines).toContain('key: traceflow-investigate-fn');
-    expect(lines).toContain('handler: backend/agent.investigate');
-    // The action module: GET verb, input contract, wired to the function.
-    expect(lines).toContain('key: traceflow-investigate');
-    expect(lines).toContain('function: traceflow-investigate-fn');
-    expect(lines).toContain('actionVerb: GET');
-    expect(lines).toContain('question:');
-    // The agent: name within the 30-character platform limit, truth-rule prompt,
-    // conversation starters, and the action listed.
-    expect(lines).toContain('rovo:agent:');
-    expect(lines).toContain('key: traceflow-analyst');
-    const name = /name: (TraceFlow Risk Analyst)/.exec(manifest)?.[1];
-    expect(name).toBeDefined();
-    expect(name!.length).toBeLessThanOrEqual(30);
-    expect(lines).toContain('prompt: |');
-    expect(manifest).toContain('never add');
-    expect(lines).toContain('conversationStarters:');
-    // The agent lists the action under its `actions:` key.
-    expect(manifest).toMatch(/actions:\s*\n\s+- traceflow-investigate\b/);
+    const manifest = parse(readFileSync(join(here, '..', 'manifest.yml'), 'utf8'));
+    const fn = manifest.modules.function.find((f: { key: string }) => f.key === 'tf-investigate');
+    expect(fn.handler).toBe('backend/tools.investigate');
+    const action = manifest.modules.action.find((a: { key: string }) => a.key === 'traceflow-investigate');
+    expect(action).toMatchObject({ function: 'tf-investigate', actionVerb: 'GET' });
+    expect(action.inputs.question).toMatchObject({ type: 'string', required: true });
+    const agent = manifest.modules['rovo:agent'][0];
+    expect(agent.key).toBe('traceflow-analyst');
+    // The agent name stays within the 30-character platform limit.
+    expect(agent.name.length).toBeLessThanOrEqual(30);
+    expect(agent.prompt).toContain('never add');
+    expect(agent.conversationStarters.length).toBeGreaterThan(0);
+    expect(agent.actions).toContain('traceflow-investigate');
   });
 });

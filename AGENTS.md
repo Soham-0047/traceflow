@@ -1,6 +1,6 @@
 # AGENTS.md: start here
 
-TraceFlow is an Atlassian Forge app for the **Codegeist 2026** hackathon (deadline Dec 23, 2026; aim to submit Dec 21). It finds knowledge-continuity risks and traces decisions across Jira and Confluence, with every finding backed by evidence records. Owner: Soham-0047. Budget: **$0**.
+TraceFlow is an Atlassian Forge app for the **Codegeist 2026** hackathon (deadline **Dec 22, 2026, 12:00 PM PT** per Atlassian's announcement; aim to submit Dec 21). It finds knowledge-continuity risks and traces decisions across Jira and Confluence, with every finding backed by evidence records. Owner: Soham-0047. Budget: **$0**.
 
 ## Read in this order
 1. `docs/PROGRESS.md`: what is done, what is next, what is verified, open blockers. **Update it before you stop.**
@@ -16,10 +16,10 @@ Several agents may work here at once. Claim a workstream in `docs/PROGRESS.md`, 
 ## Layout
 | Path | What |
 | --- | --- |
-| `packages/core` | Pure TypeScript engine: the validation boundary (`validate.ts`, strict + best-effort), the shared `GraphIndex` + `graphFingerprint`, risk scoring, epic lineage, overview aggregates, decision tracing, change impact, the deterministic answer layer (`query.ts`), the grounding guard (`grounding.ts`), Jira/Confluence normalizers, sample fixtures, and the compromise-backed analysis layer (`nlp.ts`) of the in-house NLU. One runtime dependency (`compromise`, MIT, offline, deterministic — the POS gates and idiom lexicon; see `THIRD_PARTY_NOTICES.md`), browser-safe. |
+| `packages/core` | Pure TypeScript engine: the live-site loader (`site-loader.ts`: Jira enhanced search, Confluence v2, coverage rules, behind an injected `SiteRequester`; `site-token.ts` is the API-token requester), the tool catalog both MCP hosts register from (`tools.ts`), the validation boundary (`validate.ts`, strict + best-effort), the shared `GraphIndex` + `graphFingerprint`, risk scoring, epic lineage, overview aggregates, decision tracing, change impact, the deterministic answer layer (`query.ts`), the grounding guard (`grounding.ts`), Jira/Confluence normalizers, sample fixtures, and the compromise-backed analysis layer (`nlp.ts`) of the in-house NLU. One runtime dependency (`compromise`, MIT, offline, deterministic — the POS gates and idiom lexicon; see `THIRD_PARTY_NOTICES.md`), browser-safe. |
 | `packages/ui` | The shared investigation UI (`<Workbench adapter={...} />`) with the Hallmark styles and the UI tests. Consumed from source via an alias. |
 | `demo` | Thin Vite host that serves `@traceflow/ui` on sample data (published to GitHub Pages at `/demo/`). |
-| `app` | Forge app scaffold (TF-01, TF-04): manifest with a **placeholder app id**, `getGraph` resolver, unit-tested KVS TTL cache, Custom UI hosting the Workbench. Needs `forge register` by Soham (see `app/README.md`). |
+| `app` | Forge app (TF-01, TF-04, TF-06): **generated** manifest (from `packages/core/src/tools.ts`, validated by Atlassian's `@forge/manifest` in CI; placeholder app id until `forge register`), `getGraph` resolver, nine Rovo actions exposed through `rovo:mcp`, reads as the user with a per-user KVS cache, Custom UI hosting the Workbench. Needs `forge register` by Soham (see `app/README.md`). |
 | `tools/seeder` | TF-05: idempotent dev-site seeder. Pure planner (unit-tested) + UNVERIFIED REST client; dry-run by default. |
 | `site` | TF-08: the public landing page (static HTML + CSS, Hallmark page flow, published to Pages at `/`). |
 | `.github/workflows` | `ci.yml` (verify on every push), `pages.yml` (site + demo to GitHub Pages), `forge-deploy.yml` (manual; refuses the placeholder app id). |
@@ -27,8 +27,10 @@ Several agents may work here at once. Claim a workstream in `docs/PROGRESS.md`, 
 ## Commands (Node 20+)
 ```
 npm install
-npm run verify          # typecheck + tests + build + e2e harness + Hallmark design lint + a11y
-npm run e2e             # the 10-stage end-to-end harness alone (after `npm run build`)
+npm run verify          # typecheck + tests + build + Forge check + e2e harness + Hallmark design lint + a11y
+npm run e2e             # the 13-stage end-to-end harness alone (after `npm run build`)
+npm run forge:manifest  # regenerate app/manifest.yml from the tool catalog (never hand-edit it)
+npm run forge:check     # Atlassian's manifest validator + cross-checks (in verify and CI)
 npm run progress:write  # refresh the table in docs/PROGRESS.md after ticking boxes
 ```
 

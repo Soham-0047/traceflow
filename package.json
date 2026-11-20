@@ -13,6 +13,9 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
+    "forge:manifest": "node scripts/forge-manifest.mjs --write",
+    "forge:check": "node scripts/forge-check.mjs",
+    "forge:build": "npm run build -w @traceflow/core && npm run build -w @traceflow/app",
     "a11y": "node scripts/a11y.mjs",
     "e2e": "node scripts/e2e.mjs",
     "lint:design": "node .claude/skills/hallmark/scripts/sloplint.mjs packages/ui/src demo/index.html demo/src --genre modern-minimal --scope app",
@@ -20,14 +23,16 @@
     "progress": "node scripts/progress.mjs",
     "progress:write": "node scripts/progress.mjs --write",
     "progress:check": "node scripts/progress.mjs --check",
-    "verify": "npm run typecheck && npm test && npm run build && npm run e2e && npm run lint:design && npm run lint:site && npm run a11y && npm run progress:check"
+    "verify": "npm run typecheck && npm test && npm run build && npm run forge:check && npm run e2e && npm run lint:design && npm run lint:site && npm run a11y && npm run progress:check"
   },
   "devDependencies": {
+    "@forge/manifest": "13.9.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@traceflow/core": "workspace:*",
     "@traceflow/mcp": "workspace:*",
     "axe-core": "4.10.2",
-    "playwright": "1.57.0"
+    "playwright": "1.57.0",
+    "yaml": "2.9.1"
   },
   "engines": {
     "node": ">=20"

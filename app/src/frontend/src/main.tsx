@@ -1,6 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Workbench } from '@traceflow/ui';
+// Figures use Geist Mono (OFL-1.1), bundled into the build so Forge needs no font egress.
+import '@fontsource/geist-mono/400.css';
+import '@fontsource/geist-mono/500.css';
 import '@traceflow/ui/styles.css';
 import { createForgeAdapter } from './forge-adapter';
 

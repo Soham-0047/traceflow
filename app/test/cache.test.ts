@@ -58,7 +58,7 @@ describe('cached', () => {
     await expect(cached(kv, 'k', 300, load)).rejects.toThrow('Boom.');
     fail = false;
     await expect(cached(kv, 'k', 300, load)).resolves.toBe('ok');
-    expect(kv.get('k')).resolves.toEqual({ expiresAt: expect.any(Number), data: 'ok' });
+    await expect(kv.get('k')).resolves.toEqual({ expiresAt: expect.any(Number), data: 'ok' });
   });
 
   it('serves a value too large for the store without caching it', async () => {

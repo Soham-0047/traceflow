@@ -9,8 +9,7 @@ export default defineConfig({
     alias: [
       { find: /^@traceflow\/core$/, replacement: at('../packages/core/src/index.ts') },
       { find: /^@traceflow\/ui$/, replacement: at('../packages/ui/src/index.ts') },
-      // The Custom UI build installs its own @forge/bridge under src/frontend;
-      // tests always run against the workspace copy so vi.mock can intercept it.
+      // Pin @forge/bridge to the one workspace copy so vi.mock always intercepts it.
       { find: /^@forge\/bridge$/, replacement: at('../node_modules/@forge/bridge/out/index.js') },
     ],
   },
