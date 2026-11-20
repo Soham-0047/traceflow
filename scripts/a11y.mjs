@@ -136,8 +136,13 @@ try {
         if (message.type() === 'error') pageErrors.push(message.text());
       },
     );
-    await page.goto(origin + url, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(500); // let the demo adapter's 300ms settle and fonts swap in
+    // 'domcontentloaded', not 'networkidle': the landing page preconnects to
+    // font CDNs, and in an offline sandbox those connections hang, so
+    // networkidle never settles and every audit times out. DOMContentLoaded
+    // plus the settle below is deterministic; the content-marker check
+    // right after still proves the app actually rendered.
+    await page.goto(origin + url, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(700); // let the demo adapter's 300ms settle, fonts swap in, and hash-route views render
     const where = `${label} @ ${viewport.width}px (${url})`;
     const marker = await page.evaluate(() => {
       const main = document.querySelector('main');
