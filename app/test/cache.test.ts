@@ -60,4 +60,28 @@ describe('cached', () => {
     await expect(cached(kv, 'k', 300, load)).resolves.toBe('ok');
     expect(kv.get('k')).resolves.toEqual({ expiresAt: expect.any(Number), data: 'ok' });
   });
+
+  it('serves a value too large for the store without caching it', async () => {
+    const kv = memoryKV();
+    const set = vi.spyOn(kv, 'set');
+    const log = vi.fn();
+    const big = { blob: 'x'.repeat(5000) };
+    await expect(cached(kv, 'k', 300, async () => big, { maxBytes: 1000, log })).resolves.toEqual(big);
+    expect(set).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/over the cache cap/));
+  });
+
+  it('treats a failing store as a cache miss, never as a failed read', async () => {
+    const log = vi.fn();
+    const broken: KVLike = {
+      get: async () => {
+        throw new Error('KVS down');
+      },
+      set: async () => {
+        throw new Error('KVS down');
+      },
+    };
+    await expect(cached(broken, 'k', 300, async () => 'fresh', { log })).resolves.toBe('fresh');
+    expect(log).toHaveBeenCalledTimes(2);
+  });
 });

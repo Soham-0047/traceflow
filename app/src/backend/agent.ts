@@ -32,17 +32,37 @@ const MAX_QUESTION_LENGTH = 500;
 /** The payload shape Forge passes to an action handler (from the Forge docs; UNVERIFIED in the runtime). */
 export interface RovoActionPayload {
   question?: unknown;
+  [input: string]: unknown;
   context?: {
     cloudId?: string;
     moduleKey?: string;
+    accountId?: string;
     jira?: { url?: string };
     confluence?: { url?: string };
   };
 }
 
+/**
+ * The second handler argument. The docs place the invoking user's account id
+ * here; older examples nest it in the payload's context, so both are read.
+ */
+export interface RovoActionContext {
+  accountId?: string;
+  principal?: { accountId?: string };
+}
+
+/** The invoking user's account id, from wherever this invocation carries it. */
+export function accountIdOf(payload: RovoActionPayload | undefined, context: RovoActionContext | undefined): string | undefined {
+  const id = context?.principal?.accountId ?? context?.accountId ?? payload?.context?.accountId;
+  return typeof id === 'string' && id.length > 0 ? id : undefined;
+}
+
 export interface InvestigateDeps {
-  /** Loads the sanitized site graph; the site url is only used to build record links. */
-  loadGraph: (siteUrl?: string) => Promise<OrgGraph>;
+  /**
+   * Loads the sanitized site graph for this user (reads run with their
+   * permissions; the cache is per account). The site url only builds links.
+   */
+  loadGraph: (siteUrl?: string, accountId?: string) => Promise<OrgGraph>;
   /** Logs failures; injected so tests can observe it. */
   logError?: (message: string, err: unknown) => void;
 }
@@ -71,8 +91,8 @@ function miss(question: string, answer: string, withSuggestions: boolean): Answe
  * and the graph is then built without urls — honest, and the cached entry is
  * shared with the Workbench resolver either way.
  */
-function siteUrlFromPayload(payload: RovoActionPayload): string | undefined {
-  const raw = payload.context?.jira?.url ?? payload.context?.confluence?.url;
+export function siteUrlFromPayload(payload: RovoActionPayload | undefined): string | undefined {
+  const raw = payload?.context?.jira?.url ?? payload?.context?.confluence?.url;
   if (typeof raw !== 'string' || raw.length === 0) return undefined;
   try {
     return new URL(raw).origin;
@@ -83,7 +103,7 @@ function siteUrlFromPayload(payload: RovoActionPayload): string | undefined {
 
 /** Build the action handler with injectable dependencies (tests pass their own). */
 export function createInvestigateAction(deps: InvestigateDeps) {
-  return async function investigate(payload: RovoActionPayload): Promise<AnswerResult> {
+  return async function investigate(payload: RovoActionPayload, context?: RovoActionContext): Promise<AnswerResult> {
     // 1. Validate the model-extracted input before it reaches the engine.
     const question = typeof payload?.question === 'string' ? payload.question.trim() : '';
     if (question.length === 0) {
@@ -100,7 +120,7 @@ export function createInvestigateAction(deps: InvestigateDeps) {
     // 2. Load the site graph through the same cache and pipeline as the resolver.
     let graph: OrgGraph;
     try {
-      graph = await deps.loadGraph(siteUrlFromPayload(payload));
+      graph = await deps.loadGraph(siteUrlFromPayload(payload), accountIdOf(payload, context));
     } catch (err) {
       (deps.logError ?? DEFAULT_LOG_ERROR)('traceflow agent: could not load the site graph', err);
       return miss(
@@ -116,7 +136,7 @@ export function createInvestigateAction(deps: InvestigateDeps) {
   };
 }
 
-/** The handler the manifest points at (`backend/agent.investigate`). */
+/** The handler the manifest points at (`backend/tools.investigate`, re-exported there). */
 export const investigate = createInvestigateAction({
-  loadGraph: (siteUrl) => loadSanitizedSiteGraph(siteUrl),
+  loadGraph: (siteUrl, accountId) => loadSanitizedSiteGraph(siteUrl, accountId),
 });

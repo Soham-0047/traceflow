@@ -17,3 +17,5 @@ export * from './matcher.js';
 export * from './intent.js';
 export * from './eval.js';
 export { sampleGraph } from './fixtures.js';
+export * from './site-loader.js';
+export * from './tools.js';

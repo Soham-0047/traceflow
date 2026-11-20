@@ -14,18 +14,38 @@ import type {
  * been validated against a live site: that is validation spike S1 (docs/SPIKES.md).
  */
 
+/**
+ * Jira issue type as the REST payload carries it. `hierarchyLevel` is the
+ * language-independent signal (1 = epic, 0 = standard, -1 = sub-task): type
+ * NAMES are localized ("Aufgabe", "Épica"), so the level wins when present.
+ */
+export interface JiraIssueTypeRaw {
+  name?: string;
+  hierarchyLevel?: number;
+  subtask?: boolean;
+}
+
 export interface JiraIssueRaw {
   key: string;
   fields: {
     summary?: string;
     status?: { statusCategory?: { key?: string } };
-    assignee?: { accountId?: string; displayName?: string } | null;
-    issuetype?: { name?: string };
-    parent?: { key: string } | null;
+    assignee?: { accountId?: string; displayName?: string; accountType?: string } | null;
+    issuetype?: JiraIssueTypeRaw;
+    /** The search payload embeds a summary of the parent, including its type. */
+    parent?: { key: string; fields?: { summary?: string; issuetype?: JiraIssueTypeRaw } } | null;
   };
 }
 
+/**
+ * A Jira remote link (GET /rest/api/3/issue/{key}/remotelink). Links created
+ * from Confluence carry a `globalId` like "appId=<uuid>&pageId=123" and an
+ * object url like ".../wiki/pages/viewpage.action?pageId=123"; links pasted by
+ * hand usually carry ".../wiki/spaces/ENG/pages/123/Title".
+ */
 export interface JiraRemoteLinkRaw {
+  globalId?: string;
+  application?: { type?: string; name?: string };
   object?: { url?: string; title?: string };
 }
 
@@ -48,9 +68,52 @@ export interface BuildGraphInput {
   siteUrl?: string;
 }
 
-/** Extract a Confluence page id from a URL like .../wiki/spaces/ENG/pages/123456/Title. */
+/**
+ * Extract a Confluence page id from the URL shapes Confluence Cloud produces:
+ *  - .../wiki/spaces/ENG/pages/123456/Title        (the canonical page URL)
+ *  - .../wiki/spaces/ENG/pages/edit-v2/123456      (editor links)
+ *  - .../wiki/pages/viewpage.action?pageId=123456  (links created from Confluence)
+ *  - appId=<uuid>&pageId=123456                    (a remote link's globalId)
+ * Tiny links (/wiki/x/AbCd) are not decoded: their encoding is not a published
+ * contract, so a guess could link the wrong page. They are skipped, never guessed.
+ */
 export function pageIdFromUrl(url: string): string | undefined {
-  return /\/pages\/(\d+)/.exec(url)?.[1];
+  return (
+    /\/pages\/(?:edit-v2\/|edit\/)?(\d+)(?:[/?#]|$)/.exec(url)?.[1] ??
+    /[?&]pageId=(\d+)(?:[&#]|$)/.exec(url)?.[1] ??
+    /^(?:.*&)?pageId=(\d+)(?:&|$)/.exec(url)?.[1]
+  );
+}
+
+/**
+ * The host of an absolute URL, or undefined for relative or malformed input.
+ * Used to keep links that point at ANOTHER Atlassian site from being matched
+ * to a local page that happens to share its numeric id.
+ */
+function hostOf(url: string): string | undefined {
+  try {
+    return new URL(url).host.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+/** The page id a remote link points at, or undefined when it is not a page on this site. */
+export function pageIdFromRemoteLink(link: JiraRemoteLinkRaw, siteUrl?: string): string | undefined {
+  const url = link.object?.url;
+  if (url && siteUrl) {
+    const linkHost = hostOf(url);
+    const siteHost = hostOf(siteUrl);
+    if (linkHost && siteHost && linkHost !== siteHost) return undefined;
+  }
+  return (url ? pageIdFromUrl(url) : undefined) ?? (link.globalId ? pageIdFromUrl(link.globalId) : undefined);
+}
+
+/** Work-item type from the payload: the hierarchy level when present (language-proof), else the name. */
+export function workItemType(type?: JiraIssueTypeRaw): WorkItemType {
+  if (type?.hierarchyLevel === 1) return 'epic';
+  if (type?.hierarchyLevel === -1 || type?.subtask === true) return 'task';
+  return typeFromName(type?.name);
 }
 
 function typeFromName(name?: string): WorkItemType {
@@ -75,7 +138,7 @@ export function workItemFromJira(
   options: { remoteLinks?: JiraRemoteLinkRaw[]; siteUrl?: string } = {},
 ): WorkItem {
   const linkedPageIds = (options.remoteLinks ?? [])
-    .map((l) => (l.object?.url ? pageIdFromUrl(l.object.url) : undefined))
+    .map((l) => pageIdFromRemoteLink(l, options.siteUrl))
     .filter((id): id is string => Boolean(id));
 
   return {
@@ -85,7 +148,7 @@ export function workItemFromJira(
       title: raw.fields.summary ?? raw.key,
       url: options.siteUrl ? `${options.siteUrl}/browse/${raw.key}` : undefined,
     },
-    type: typeFromName(raw.fields.issuetype?.name),
+    type: workItemType(raw.fields.issuetype),
     assigneeId: raw.fields.assignee?.accountId,
     status: raw.fields.status?.statusCategory?.key === 'done' ? 'done' : 'open',
     epicId: raw.fields.parent?.key,
