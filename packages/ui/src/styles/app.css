@@ -63,6 +63,18 @@
 /* Impact verdict counts settle in a hair apart from their section. */
 .impact-verdict { animation: panel-in var(--dur-exchange) var(--ease-out) 60ms backwards; }
 
+/* Record tables settle row by row when a view mounts: the first eight rows
+   stagger 30ms apart, the rest arrive with the eighth. Same keyframe, same
+   travel, from visible (gate 62); collapsed by the reduced-motion block. */
+.view tbody tr { animation: panel-in var(--dur-exchange) var(--ease-out) backwards; }
+.view tbody tr:nth-child(2) { animation-delay: 30ms; }
+.view tbody tr:nth-child(3) { animation-delay: 60ms; }
+.view tbody tr:nth-child(4) { animation-delay: 90ms; }
+.view tbody tr:nth-child(5) { animation-delay: 120ms; }
+.view tbody tr:nth-child(6) { animation-delay: 150ms; }
+.view tbody tr:nth-child(7) { animation-delay: 180ms; }
+.view tbody tr:nth-child(n + 8) { animation-delay: 210ms; }
+
 /* Shell */
 .skip { position: absolute; left: var(--space-md); top: -100px; z-index: var(--z-tooltip); padding: var(--space-xs) var(--space-sm); background: var(--color-ink); color: var(--color-paper); border-radius: var(--radius-input); }
 .skip:focus-visible { top: var(--space-xs); }
